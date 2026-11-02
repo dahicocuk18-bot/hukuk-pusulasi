@@ -245,7 +245,7 @@ function request(method,url,{headers={},body="",expect="json"}={}){
 /* ===================== METİN YARDIMCILARI ===================== */
 function decodeEntities(s){const ta=document.createElement("textarea");ta.innerHTML=s;return ta.value}
 function htmlToText(h){
-  let s=(h||"").replace(/<(style|script|head)[^>]*>[\s\S]*?<\/\1>/gi,"").replace(/<br\s*\/?>/gi,"\n").replace(/<\/(p|div|tr|li|h[1-6])>/gi,"\n").replace(/<[^>]+>/g,"");
+  let s=(h||"").replace(/<(style|script|head)[^>]*>[\s\S]*?<\/\1>/gi,"").replace(/\s*[\r\n]+\s*/g," ").replace(/<br\s*\/?>/gi,"\n").replace(/<\/(p|div|tr|li|h[1-6])>/gi,"\n").replace(/<[^>]+>/g,"");
   s=decodeEntities(s);return s.replace(/[ \t\u00a0]+/g," ").replace(/\n[ \t]+/g,"\n").replace(/\n{3,}/g,"\n\n").trim()}
 function b64utf8(b){const bin=atob(b);const u=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)u[i]=bin.charCodeAt(i);return new TextDecoder("utf-8").decode(u)}
 /* "kira tespit" -> "+kira +tespit"; tırnak, + ve - korunur; kesme işaretinden sonraki ek atılır (TMK'nın -> TMK) */
@@ -287,12 +287,13 @@ const SOURCES={
         const rg=parseDate(m.resmiGazeteTarihi);
         return {src:"mevzuat",id:String(m.mevzuatId),title:clean(m.mevzuatAdi),
           sub:[m.mevzuatNo?m.mevzuatNo+" sayılı":null,tur,rg?"RG "+fmtDate(rg):null,m.resmiGazeteSayisi?"Sayı "+m.resmiGazeteSayisi:null].filter(Boolean).join(" · "),
-          date:rg,url:m.url||"https://www.mevzuat.gov.tr",cite:clean((m.mevzuatNo?m.mevzuatNo+" sayılı ":"")+m.mevzuatAdi),titleHit,tur:(m.mevzuatTur&&m.mevzuatTur.name)||""}});
+          date:rg,no:m.mevzuatNo,url:m.url||"https://www.mevzuat.gov.tr",cite:clean((m.mevzuatNo?m.mevzuatNo+" sayılı ":"")+m.mevzuatAdi),titleHit,tur:(m.mevzuatTur&&m.mevzuatTur.name)||""}});
       const items=[...conv(title,true),...conv(full,false)];
       const seen=new Set();const out=items.filter(x=>!seen.has(x.id)&&seen.add(x.id));
       const total=Math.max((full&&full.data&&full.data.total)||0,(title&&title.data&&title.data.total)||0);
       return {items:out,total,hasMore:page*15<((full&&full.data&&full.data.total)||0)}},
-    async read(it){const j=await request("POST",BED+"/mevzuat/getDocumentContent",{headers:MEV_H,body:JSON.stringify({data:{documentType:"MEVZUAT",id:it.id},applicationName:"UyapMevzuat"})});
+    async read(it){if(!it.id&&it.no){const m=await resolveLaw(it.no);it.id=String(m.mevzuatId);it.url=m.url||it.url}
+      const j=await request("POST",BED+"/mevzuat/getDocumentContent",{headers:MEV_H,body:JSON.stringify({data:{documentType:"MEVZUAT",id:it.id},applicationName:"UyapMevzuat"})});
       const d=j.data||{};if(!d.content)throw new SourceError("Metin bulunamadı");
       if(d.mimeType&&!/html/.test(d.mimeType))throw new SourceError("Metin "+d.mimeType+" biçiminde; resmî kaynakta aç");
       return htmlToText(b64utf8(d.content))}},
@@ -342,6 +343,10 @@ const SOURCES={
           date:dt,url:kn?"https://kararlarbilgibankasi.anayasa.gov.tr/ND/"+kn:"https://kararlarbilgibankasi.anayasa.gov.tr",cite:`AYM, E. ${en}, K. ${kn}, K.T. ${fmtDate(dt)}`}})}},
     async read(it){const d=await aymPost({kararTipi:"NormDenetimi",id:it.id,page:1,size:1});const k=(d.data||[])[0]||{};const t=htmlToText(k.icerik||"");if(t.length<60)throw new SourceError("Karar metni bulunamadı");return t}}
 };
+async function resolveLaw(no){
+  const j=await request("POST",BED+"/mevzuat/searchDocuments",{headers:MEV_H,body:JSON.stringify({data:{pageSize:10,pageNumber:1,mevzuatNo:String(no),mevzuatTurList:["KANUN"],sortFields:["RESMI_GAZETE_TARIHI"],sortDirection:"desc"},applicationName:"UyapMevzuat",paging:true})});
+  const list=(j.data&&j.data.mevzuatList)||[];const m=list.find(x=>String(x.mevzuatNo)===String(no))||list[0];
+  if(!m)throw new SourceError("Kanun bulunamadı");return m}
 function aymPost(payload){return request("POST","https://kararlarbilgibankasi.anayasa.gov.tr/api/core/public/search",{headers:{"Content-Type":"application/json; charset=utf-8","Accept":"application/json"},body:JSON.stringify(payload)})}
 const KIND={mevzuat:"Mevzuat",yargitay:"Yargıtay",danistay:"Danıştay",emsal:"Bölge / ilk derece",aym:"AYM bireysel başvuru",norm:"AYM iptal / itiraz"};
 
@@ -496,7 +501,8 @@ function matchCats(q){const f=" "+fold(q)+" ";
 
 async function search(q){
   q=(q||"").trim();if(!q)return;const my=++seq;
-  state={q,page:1,bySrc:{},status:{},more:{}};
+  const cat=matchCats(q)[0];
+  state={q,page:1,bySrc:{},status:{},more:{},core:cat?cat.kanun.filter(k=>typeof k[0]==="number").slice(0,4).map(([no,ad])=>({src:"mevzuat",core:true,id:"",no,title:ad,sub:no+" sayılı Kanun · bu konunun temel kanunu",date:null,url:"https://www.mevzuat.gov.tr",cite:no+" sayılı "+ad,tur:"KANUN"})):[]};
   $("#results").replaceChildren(el("div",{class:"empty",text:"Resmî kaynaklarda aranıyor…"}));
   $("#moreBtn").hidden=true;$("#count").textContent="";
   renderGuide(q);
@@ -521,28 +527,31 @@ function renderStatus(){const box=$("#status");box.replaceChildren();
     if(s.t==="wait")box.append(el("span",{class:"pill",text:SOURCES[k].short+" …"}));
     else if(s.t==="ok")box.append(el("span",{class:"pill ok",text:`${SOURCES[k].short}: ${Number(s.n||0).toLocaleString("tr-TR")}`}));
     else box.append(el("span",{class:"pill err",title:s.m},SOURCES[k].short+": "+s.m+" · ",el("a",{href:SOURCES[k].site,target:"_blank",rel:"noopener",text:"sitede ara ↗"})))})}
-function relevance(it,terms){const t=fold(it.title+" "+it.sub);let s=0;terms.forEach(w=>{if(t.includes(fold(w)))s+=2});if(it.titleHit)s+=6;if(it.src==="mevzuat"&&it.tur==="KANUN")s+=2;return s}
+const TUR_W={KANUN:6,CB_KARARNAME:4,KHK:4,YONETMELIK:3,CB_YONETMELIK:3,TUZUK:3,KKY:2,CB_GENELGE:1,TEBLIGLER:0};
+function relevance(it,terms){const t=fold(it.title+" "+it.sub);let s=0;terms.forEach(w=>{if(t.includes(fold(w)))s+=3});if(it.titleHit)s+=8;if(it.src==="mevzuat")s+=(TUR_W[it.tur]||0);return s}
 function ordered(){
   const sort=$("#sort").value;const lists=ORDER.filter(k=>enabled.has(k)).map(k=>state.bySrc[k]||[]);
   if(sort==="new"||sort==="old"){const all=lists.flat();const dir=sort==="new"?-1:1;
     return all.sort((a,b)=>{if(!a.date&&!b.date)return 0;if(!a.date)return 1;if(!b.date)return -1;return dir*(a.date-b.date)})}
   const terms=plainTerms(state.q);
   // kaynakların kendi sıralamasını koruyarak sırayla harmanla; mevzuatta başlık eşleşmeleri öne
-  const mev=(state.bySrc.mevzuat&&enabled.has("mevzuat"))?[...state.bySrc.mevzuat].sort((a,b)=>relevance(b,terms)-relevance(a,terms)):[];
+  let mev=[];if(enabled.has("mevzuat")){const coreNos=new Set(state.core.map(c=>String(c.no)));
+    const fetched=(state.bySrc.mevzuat||[]).filter(x=>!(x.tur==="KANUN"&&coreNos.has(String(x.no))));
+    mev=[...state.core,...fetched.map((x,i)=>[x,i]).sort((a,b)=>(relevance(b[0],terms)-relevance(a[0],terms))||(a[1]-b[1])).map(p=>p[0])]}
   const others=ORDER.filter(k=>k!=="mevzuat"&&enabled.has(k)).map(k=>state.bySrc[k]||[]);
-  const out=mev.slice(0,3);const restMev=mev.slice(3);
+  const head=Math.max(3,state.core.length);const out=mev.slice(0,head);const restMev=mev.slice(head);
   const max=Math.max(0,...others.map(l=>l.length),restMev.length);
   for(let i=0;i<max;i++){others.forEach(l=>{if(l[i])out.push(l[i])});if(i%2===1&&restMev.length)out.push(restMev.shift())}
   return out.concat(restMev)}
 function renderResults(){
   const box=$("#results");const items=ordered();box.replaceChildren();
   const waiting=ORDER.some(k=>state.status[k]&&state.status[k].t==="wait");
-  if(!items.length){box.append(el("div",{class:"empty",text:waiting?"Resmî kaynaklarda aranıyor…":"Sonuç bulunamadı. Daha az ya da farklı sözcükle dene (örn: 'kira tespit' yerine 'kira')."}));$("#count").textContent="";return}
+  if(!items.length||(items.length===state.core.length&&waiting)){if(items.length){items.forEach(it=>box.append(itemCard(it)))}else box.append(el("div",{class:"empty",text:waiting?"Resmî kaynaklarda aranıyor…":"Sonuç bulunamadı. Daha az ya da farklı sözcükle dene (örn: 'kira tespit' yerine 'kira')."}));$("#count").textContent="";return}
   $("#count").textContent=items.length+" sonuç gösteriliyor";
   items.forEach(it=>box.append(itemCard(it)))}
 function itemCard(it){
   return el("article",{class:"item","data-src":it.src},
-    el("div",{class:"top"},el("span",{class:"kind",text:KIND[it.src]}),el("span",{class:"date",text:fmtDate(it.date)})),
+    el("div",{class:"top"},el("span",{class:"kind",text:it.core?"Temel kanun":KIND[it.src]}),el("span",{class:"date",text:fmtDate(it.date)})),
     el("h3",{text:it.title}),it.sub?el("div",{class:"sub",text:it.sub}):null,
     el("div",{class:"acts"},el("button",{class:"btn small primary",text:"Metni oku",onclick:()=>openReader(it)}),
       el("a",{class:"btn small",href:it.url,target:"_blank",rel:"noopener",text:"Kaynak ↗"}),
@@ -569,9 +578,7 @@ function renderGuide(q){const box=$("#guideBox");box.replaceChildren();const m=m
 async function openLaw(no,ad){
   if(typeof no!=="number"){show("ara");$("#q").value=no;search(no);return}
   toast(no+" sayılı kanun aranıyor…");
-  try{const j=await request("POST",BED+"/mevzuat/searchDocuments",{headers:MEV_H,body:JSON.stringify({data:{pageSize:10,pageNumber:1,mevzuatNo:String(no),mevzuatTurList:["KANUN"],sortFields:["RESMI_GAZETE_TARIHI"],sortDirection:"desc"},applicationName:"UyapMevzuat",paging:true})});
-    const list=(j.data&&j.data.mevzuatList)||[];const m=list.find(x=>String(x.mevzuatNo)===String(no))||list[0];
-    if(!m)throw new SourceError("Kanun bulunamadı");
+  try{const m=await resolveLaw(no);
     openReader({src:"mevzuat",id:String(m.mevzuatId),title:clean(m.mevzuatAdi),sub:no+" sayılı Kanun",url:m.url||"https://www.mevzuat.gov.tr",cite:no+" sayılı "+clean(m.mevzuatAdi)})}
   catch(e){toast("Kanun metni açılamadı: "+e.message+". Ara sekmesinde '"+no+" sayılı' diye arayabilirsin.")}}
 
