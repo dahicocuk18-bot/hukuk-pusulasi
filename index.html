@@ -1,0 +1,628 @@
+<!-- hukuk-pusulasi-ui -->
+<title>Hukuk Pusulası</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+/* Layout: sticky tab bar; search results as a single ranked column; category guides as stacked sections; petition form + live preview */
+:root{
+  --bg:#f2f4f7; --surface:#ffffff; --ink:#14203a; --muted:#5a6478; --line:#d9dee7;
+  --accent:#8c1d2f; --accent-ink:#ffffff; --accent-soft:#f6e6e9;
+  --ok:#1d7a53; --ok-soft:#e1f2ea; --warn:#a85d0f; --warn-soft:#fbeedb; --mark:#ffe58a;
+  --serif:"Noto Serif","Source Serif Pro",Georgia,"Times New Roman",serif;
+  --sans:Roboto,"Noto Sans","Segoe UI",system-ui,-apple-system,sans-serif;
+  --mono:"Roboto Mono","Noto Sans Mono",ui-monospace,Menlo,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0f1420; --surface:#171d2b; --ink:#e8ebf2; --muted:#9aa3b6; --line:#2a3245;
+  --accent:#e0647a; --accent-ink:#1a0b0f; --accent-soft:#3a1c24;
+  --ok:#4fc38f; --ok-soft:#14322a; --warn:#e5a050; --warn-soft:#3a2a15; --mark:#6b5a12; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0f1420; --surface:#171d2b; --ink:#e8ebf2; --muted:#9aa3b6; --line:#2a3245;
+  --accent:#e0647a; --accent-ink:#1a0b0f; --accent-soft:#3a1c24;
+  --ok:#4fc38f; --ok-soft:#14322a; --warn:#e5a050; --warn-soft:#3a2a15; --mark:#6b5a12; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font:15px/1.55 var(--sans)}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--bg)}
+.wrap{max-width:860px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+header.top{padding-block:22px 2px}
+h1{font:700 clamp(28px,6vw,40px)/1.1 var(--serif);margin:0;letter-spacing:-.01em}
+h1 span{color:var(--accent)}
+.lede{color:var(--muted);margin:6px 0 0;max-width:60ch}
+nav.tabs{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);border-bottom:1px solid var(--line);margin-top:12px}
+nav.tabs .wrap{display:flex;gap:2px;overflow-x:auto}
+.tab{appearance:none;border:0;background:none;color:var(--muted);font:600 15px var(--sans);padding:12px 12px;border-bottom:3px solid transparent;cursor:pointer;white-space:nowrap}
+.tab[aria-selected="true"]{color:var(--ink);border-color:var(--accent)}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+main{padding-block:14px 56px}
+h2{font:700 20px/1.25 var(--serif);margin:0 0 8px;text-wrap:balance}
+h3{font:600 15px/1.35 var(--sans);margin:0}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+input[type=search],input[type=text],select,textarea{font:inherit;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px 12px;width:100%;min-width:0}
+textarea{resize:vertical;min-height:84px}
+.btn{appearance:none;border:1px solid var(--line);background:var(--surface);color:var(--ink);font:600 14px var(--sans);border-radius:10px;padding:10px 14px;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:6px}
+.btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.btn.small{padding:6px 10px;font-size:13px}
+.btn:disabled{opacity:.5}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:999px;padding:6px 12px;font:600 13px var(--sans);cursor:pointer}
+.chip[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.searchbar{display:flex;gap:8px}
+.searchbar input{flex:1}
+.hint{font-size:13px;color:var(--muted)}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px;min-width:0}
+.stack{display:flex;flex-direction:column;gap:12px}
+.status{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0}
+.pill{font:600 12px var(--sans);border-radius:999px;padding:3px 10px;background:var(--bg);border:1px solid var(--line);color:var(--muted)}
+.pill.ok{background:var(--ok-soft);color:var(--ok);border-color:transparent}
+.pill.err{background:var(--warn-soft);color:var(--warn);border-color:transparent}
+.pill a{color:inherit}
+.res{display:flex;flex-direction:column;gap:8px}
+.item{background:var(--surface);border:1px solid var(--line);border-left:4px solid var(--line);border-radius:12px;padding:12px;display:flex;flex-direction:column;gap:6px;min-width:0}
+.item[data-src="mevzuat"]{border-left-color:var(--accent)}
+.item[data-src="yargitay"],.item[data-src="emsal"]{border-left-color:#3b6ea5}
+.item[data-src="danistay"]{border-left-color:#5a8f3a}
+.item[data-src="aym"],.item[data-src="norm"]{border-left-color:#b07a12}
+.item .top{display:flex;justify-content:space-between;gap:8px;align-items:baseline}
+.kind{font:700 11px var(--sans);letter-spacing:.04em;text-transform:uppercase;color:var(--muted)}
+.date{font:12px var(--mono);color:var(--muted);white-space:nowrap}
+.item h3{overflow-wrap:anywhere}
+.sub{font-size:13px;color:var(--muted);overflow-wrap:anywhere}
+.acts{display:flex;flex-wrap:wrap;gap:6px}
+.more{display:flex;justify-content:center;margin-top:12px}
+.empty{padding:18px;border:1px dashed var(--line);border-radius:12px;color:var(--muted);text-align:center}
+/* rehber */
+.guide{border:1px solid var(--accent);background:var(--accent-soft);border-radius:14px;padding:14px;display:flex;flex-direction:column;gap:10px}
+.guide h2{margin:0}
+.deadline{display:grid;grid-template-columns:auto 1fr;gap:4px 10px;font-size:14px}
+.deadline b{font:700 13px var(--mono);color:var(--warn);white-space:nowrap}
+.deadline span small{color:var(--muted)}
+ol.steps{margin:0;padding-left:20px;display:grid;gap:4px}
+.lawlist{display:flex;flex-wrap:wrap;gap:6px}
+.lawlist button{font-size:13px}
+details.cat{background:var(--surface);border:1px solid var(--line);border-radius:14px}
+details.cat>summary{list-style:none;cursor:pointer;padding:14px;display:flex;justify-content:space-between;gap:10px;align-items:center}
+details.cat>summary::-webkit-details-marker{display:none}
+details.cat>summary::after{content:"＋";color:var(--muted);font-weight:700}
+details.cat[open]>summary::after{content:"－"}
+details.cat .body{padding:0 14px 14px;display:flex;flex-direction:column;gap:12px}
+.label{font:700 12px var(--sans);letter-spacing:.05em;text-transform:uppercase;color:var(--muted);margin-bottom:4px}
+/* dilekçe */
+.form{display:grid;gap:10px}
+.form label{display:grid;gap:4px;font-size:13px;color:var(--muted)}
+pre.doc{white-space:pre-wrap;font:14px/1.6 var(--serif);background:var(--surface);color:var(--ink);border:1px solid var(--line);border-radius:12px;padding:16px;margin:0;overflow-wrap:anywhere}
+/* okuyucu */
+.reader{position:fixed;inset:0;z-index:20;background:var(--bg);display:flex;flex-direction:column;padding-top:env(safe-area-inset-top,0px)}
+.reader[hidden]{display:none}
+.rhead{border-bottom:1px solid var(--line);background:var(--surface)}
+.rhead .wrap{padding-block:10px;display:flex;flex-direction:column;gap:8px}
+.rbody{flex:1;overflow:auto}
+.rbody .wrap{padding-block:14px 40px}
+.rtext{white-space:pre-wrap;font:15px/1.7 var(--serif);overflow-wrap:anywhere}
+mark{background:var(--mark);color:inherit;border-radius:2px}
+mark.cur{outline:2px solid var(--accent)}
+.note{font-size:13px;color:var(--muted);border:1px dashed var(--line);border-radius:12px;padding:12px;margin-top:16px}
+.note b{color:var(--ink)}
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:10px;font-size:14px;z-index:30;max-width:90vw}
+</style>
+
+<header class="top wrap">
+  <h1>Hukuk <span>Pusulası</span></h1>
+  <p class="lede">Konunu yaz; ilgili kanunları, Yargıtay, Danıştay, bölge mahkemesi ve Anayasa Mahkemesi kararlarını resmî kaynaklardan bulup sıralasın.</p>
+</header>
+
+<nav class="tabs" aria-label="Bölümler"><div class="wrap" role="tablist">
+  <button class="tab" role="tab" id="t-ara" aria-selected="true" data-view="ara">Ara</button>
+  <button class="tab" role="tab" id="t-kat" aria-selected="false" data-view="kat">Konular</button>
+  <button class="tab" role="tab" id="t-dil" aria-selected="false" data-view="dil">Dilekçeler</button>
+</div></nav>
+
+<main class="wrap">
+  <!-- ARA -->
+  <section id="ara">
+    <form class="searchbar" id="sform" autocomplete="off">
+      <input type="search" id="q" placeholder="Örn: kira artışı tahliye, işe iade, malpraktis" aria-label="Konu ara" enterkeyhint="search">
+      <button class="btn primary" type="submit">Ara</button>
+    </form>
+    <div class="chips" id="srcChips" role="group" aria-label="Kaynaklar" style="margin-top:10px"></div>
+    <div class="row" style="margin-top:10px;justify-content:space-between">
+      <select id="sort" aria-label="Sırala" style="width:auto">
+        <option value="rel">En ilgili</option><option value="new">En yeni</option><option value="old">En eski</option>
+      </select>
+      <span class="hint" id="count"></span>
+    </div>
+    <div class="status" id="status"></div>
+    <div id="guideBox"></div>
+    <div class="res" id="results">
+      <div class="empty">Bir konu yaz ve <b>Ara</b>'ya bas. Örnek: <a href="#" data-ex="kira tespit">kira tespit</a> · <a href="#" data-ex="işe iade">işe iade</a> · <a href="#" data-ex="tıbbi hata tazminat">tıbbi hata tazminat</a> · <a href="#" data-ex="disiplin cezası iptal">disiplin cezası iptal</a></div>
+    </div>
+    <div class="more"><button class="btn" id="moreBtn" hidden>Daha fazla sonuç</button></div>
+    <p class="note"><b>Arama nasıl çalışır:</b> Yazdığın sözcüklerin <b>hepsini</b> içeren kararlar gelir. Tam ifade için tırnak kullan (<code>"kira tespit"</code>), bir sözcüğü dışlamak için başına eksi koy (<code>-ticari</code>). Sonuçlar her aramada resmî sitelerden canlı çekilir; uygulama hiçbir aramanı kaydetmez.</p>
+  </section>
+
+  <!-- KONULAR -->
+  <section id="kat" hidden>
+    <p class="hint" style="margin-top:0">Her konuda temel kanunlar, kaçırılmaması gereken süreler, ne yapman gerektiği ve hazır dilekçeler.</p>
+    <div class="stack" id="catList"></div>
+    <div class="note" id="appinfo" hidden>
+      <b>Uygulama</b> · <span id="appver"></span><br>
+      Ekran ve içerik her açılışta kendiliğinden güncellenir; yeni sürüm çıkınca bildirim gelir.
+      <div class="row" style="margin-top:8px"><button class="btn small" id="checkUpd">Güncellemeyi şimdi kontrol et</button></div>
+    </div>
+    <p class="note"><b>Önemli:</b> Bu uygulama bilgi amaçlıdır, avukatlık hizmeti değildir. Süreler ve kanunlar değişebilir; işlem yapmadan önce kanun metnini <b>Ara</b> sekmesinden açıp güncel hâlini kontrol et, mümkünse bir avukata ya da barodaki adli yardım bürosuna danış.</p>
+  </section>
+
+  <!-- DİLEKÇELER -->
+  <section id="dil" hidden>
+    <label class="hint" for="tplSel">Dilekçe türü</label>
+    <select id="tplSel"></select>
+    <p class="hint" id="tplInfo"></p>
+    <div class="panel"><div class="form" id="tplForm"></div></div>
+    <div class="row" style="margin:12px 0 8px;justify-content:space-between">
+      <h2 style="margin:0">Önizleme</h2>
+      <div class="row">
+        <button class="btn small" id="copyBtn">Kopyala</button>
+        <button class="btn small primary" id="shareBtn">Paylaş / Kaydet</button>
+      </div>
+    </div>
+    <pre class="doc" id="preview"></pre>
+    <p class="note"><b>Gizlilik:</b> Yazdığın bilgiler yalnızca bu ekranda durur; hiçbir yere gönderilmez ve kaydedilmez. Uygulamayı kapatınca silinir. Boş bıraktığın alanlar <b>[köşeli parantez]</b> olarak kalır, kâğıda elle doldurabilirsin.</p>
+  </section>
+</main>
+
+<!-- OKUYUCU -->
+<div class="reader" id="reader" hidden role="dialog" aria-modal="true" aria-labelledby="rTitle">
+  <div class="rhead"><div class="wrap">
+    <div class="row" style="justify-content:space-between;flex-wrap:nowrap">
+      <span class="kind" id="rKind"></span>
+      <button class="btn small" id="rClose">Kapat ✕</button>
+    </div>
+    <h3 id="rTitle"></h3>
+    <div class="sub" id="rSub"></div>
+    <div class="row" style="flex-wrap:nowrap">
+      <input type="search" id="rFind" placeholder="Metinde bul (örn: madde 344)" aria-label="Metinde bul">
+      <button class="btn small" id="rNext">Sonraki</button>
+    </div>
+    <div class="acts">
+      <a class="btn small" id="rSrc" target="_blank" rel="noopener">Resmî kaynakta aç ↗</a>
+      <button class="btn small" id="rCite">Atfı kopyala</button>
+      <span class="hint" id="rHits"></span>
+    </div>
+  </div></div>
+  <div class="rbody" id="rBody"><div class="wrap"><div class="rtext" id="rText"></div></div></div>
+</div>
+
+<script>
+"use strict";
+const $=s=>document.querySelector(s);
+const enc=encodeURIComponent;
+function el(tag,attrs,...kids){const e=document.createElement(tag);if(attrs)for(const k in attrs){if(k==="text")e.textContent=attrs[k];else if(k==="html")e.innerHTML=attrs[k];else if(k.startsWith("on"))e.addEventListener(k.slice(2),attrs[k]);else if(attrs[k]!=null)e.setAttribute(k,attrs[k])}kids.flat().forEach(k=>{if(k!=null)e.append(k)});return e}
+function toast(t){const d=el("div",{class:"toast",role:"status",text:t});document.body.append(d);setTimeout(()=>d.remove(),2600)}
+function trLower(s){return (s||"").toLocaleLowerCase("tr")}
+function fold(s){return trLower(s).replace(/ç/g,"c").replace(/ğ/g,"g").replace(/ı/g,"i").replace(/ö/g,"o").replace(/ş/g,"s").replace(/ü/g,"u").replace(/â/g,"a").replace(/î/g,"i").replace(/û/g,"u")}
+function copyText(t){const done=()=>toast("Kopyalandı");
+  if(navigator.clipboard&&navigator.clipboard.writeText)return navigator.clipboard.writeText(t).then(done,()=>fallback());fallback();
+  function fallback(){const ta=el("textarea");ta.value=t;document.body.append(ta);ta.select();try{document.execCommand("copy");done()}catch(e){toast("Kopyalanamadı")}ta.remove()}}
+
+/* ===================== AĞ KATMANI ===================== */
+/* Android'de istek Java üzerinden gider (yalnız izinli resmî siteler). Aynı siteye istekler sıraya girer, aralarında 1,1 sn beklenir.
+   403 / 429 / doğrulama (captcha) görülürse o siteye 2 dakika istek gönderilmez; uygulama engel aşmaya çalışmaz. */
+const GAP=1100,PAUSE=120000;
+const hosts={};let cbId=0;const cbs={};
+window.__httpCb=(id,status,text,ctype)=>{const f=cbs[id];delete cbs[id];if(f)f({status:+status,text:text||"",ctype:ctype||""})};
+function rawRequest(method,url,headers,body){
+  if(window.Android&&window.Android.http){
+    return new Promise(res=>{const id=String(++cbId);cbs[id]=res;window.Android.http(id,method,url,JSON.stringify(headers||{}),body||"")});
+  }
+  return fetch(url,{method,headers,body:method==="GET"?undefined:body}).then(async r=>({status:r.status,text:await r.text(),ctype:r.headers.get("content-type")||""}),()=>({status:0,text:"",ctype:""}));
+}
+class SourceError extends Error{constructor(msg,hard){super(msg);this.hard=!!hard}}
+const CAPTCHA_JSON=/"isDisplayCaptcha"\s*:\s*"?true|"FMTE"\s*:\s*"[^"]*DisplayCaptcha|reCaptchaTimeout/i;
+const CAPTCHA_HTML=/<[a-z][^>]*\bid\s*=\s*["']?isDisplayCaptcha\b[^>]*>\s*true\s*<|<[a-z][^>]*\bdata-sitekey\s*=|class\s*=\s*["'][^"']*\b(g-recaptcha|h-captcha|cf-turnstile)\b/i;
+function request(method,url,{headers={},body="",expect="json"}={}){
+  const host=new URL(url).host;const h=hosts[host]||(hosts[host]={chain:Promise.resolve(),last:0,pauseUntil:0,msg:""});
+  const run=async()=>{
+    if(Date.now()<h.pauseUntil)throw new SourceError(h.msg+" ("+Math.ceil((h.pauseUntil-Date.now())/1000)+" sn sonra tekrar dene)",true);
+    const wait=h.last+GAP-Date.now();if(wait>0)await new Promise(r=>setTimeout(r,wait));
+    let r;try{r=await rawRequest(method,url,headers,body)}finally{h.last=Date.now()}
+    const t=r.text||"";const isHtml=/html/i.test(r.ctype)||/^\s*</.test(t);
+    const hard=m=>{h.pauseUntil=Date.now()+PAUSE;h.msg=m;throw new SourceError(m,true)};
+    if(r.status===429)hard("Site çok sık istek gönderildiğini bildirdi");
+    if(r.status===403)hard("Site isteği reddetti");
+    if(t&&(isHtml?CAPTCHA_HTML.test(t):CAPTCHA_JSON.test(t)))hard("Site doğrulama (captcha) istedi; aramayı resmî sitede yap");
+    if(r.status>=300&&r.status<400)hard("Site başka bir sayfaya yönlendirdi");
+    if(r.status===0)throw new SourceError("Bağlantı kurulamadı");
+    if(r.status>=400)throw new SourceError("Site hata verdi (HTTP "+r.status+")");
+    if(expect==="json"){
+      if(isHtml)hard("Site beklenmeyen bir sayfa döndürdü");
+      let j;try{j=JSON.parse(t)}catch(e){throw new SourceError("Site anlaşılamayan bir cevap verdi")}
+      const m=j&&j.metadata;if(m&&m.FMTY&&m.FMTY!=="SUCCESS")throw new SourceError(m.FMTE||"Site hata verdi");
+      return j;
+    }
+    return t;
+  };
+  const p=h.chain.then(run,run);h.chain=p.catch(()=>{});return p;
+}
+
+/* ===================== METİN YARDIMCILARI ===================== */
+function decodeEntities(s){const ta=document.createElement("textarea");ta.innerHTML=s;return ta.value}
+function htmlToText(h){
+  let s=(h||"").replace(/<(style|script|head)[^>]*>[\s\S]*?<\/\1>/gi,"").replace(/<br\s*\/?>/gi,"\n").replace(/<\/(p|div|tr|li|h[1-6])>/gi,"\n").replace(/<[^>]+>/g,"");
+  s=decodeEntities(s);return s.replace(/[ \t\u00a0]+/g," ").replace(/\n[ \t]+/g,"\n").replace(/\n{3,}/g,"\n\n").trim()}
+function b64utf8(b){const bin=atob(b);const u=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)u[i]=bin.charCodeAt(i);return new TextDecoder("utf-8").decode(u)}
+/* "kira tespit" -> "+kira +tespit"; tırnak, + ve - korunur; kesme işaretinden sonraki ek atılır (TMK'nın -> TMK) */
+function veSorgusu(q){
+  let s=(q||"").replace(/['’‘`´][\p{L}\p{N}]*/gu,"").replace(/[^\p{L}\p{N}\s"+\-]/gu," ");
+  if((s.match(/"/g)||[]).length%2)s=s.replace(/"/g," ");
+  const parts=[];const re=/([+-]?)("[^"]*"|[^\s"]+)/g;let m;
+  while((m=re.exec(s))){const sign=m[1],body=m[2];
+    if(body.startsWith('"')){const inner=body.slice(1,-1).replace(/[+\-]/g," ").split(/\s+/).filter(Boolean).join(" ");if(inner)parts.push([sign,'"'+inner+'"']);continue}
+    body.split(/[+\-]+/).filter(Boolean).forEach((w,i)=>parts.push([i===0?sign:"",w]))}
+  const ops={AND:1,OR:1,NOT:1};
+  if(parts.some(([sg,b])=>!sg&&(ops[b]||b==="and"||b==="or"))){const out=[];
+    for(const[sg,b]of parts){const op=!sg&&(ops[b]?b:(b==="and"||b==="or")?b.toUpperCase():null);
+      if(op){if(out.length&&!ops[out[out.length-1]])out.push(op)}else out.push(sg+b)}
+    while(out.length&&ops[out[out.length-1]])out.pop();return out.join(" ")}
+  return parts.map(([sg,b])=>(sg||"+")+b).join(" ")}
+function plainTerms(q){return (q||"").replace(/['’‘`´][\p{L}]*/gu,"").replace(/[^\p{L}\p{N}\s"\-]/gu," ").split(/\s+/).filter(w=>w&&!w.startsWith("-")).map(w=>w.replace(/"/g,"")).filter(w=>w.length>1)}
+function parseDate(s){if(!s)return null;s=String(s).trim();let m;
+  if((m=s.match(/^(\d{4})-(\d{2})-(\d{2})/)))return new Date(+m[1],+m[2]-1,+m[3]);
+  if((m=s.match(/^(\d{1,2})[./](\d{1,2})[./](\d{4})/)))return new Date(+m[3],+m[2]-1,+m[1]);
+  return null}
+function fmtDate(d){return d?d.toLocaleDateString("tr-TR",{day:"2-digit",month:"2-digit",year:"numeric"}):""}
+function clean(s){return (s||"").toString().replace(/\s+/g," ").trim()}
+
+/* ===================== KAYNAKLAR ===================== */
+const BED="https://bedesten.adalet.gov.tr";
+const JSONH={"Content-Type":"application/json; charset=UTF-8","Accept":"application/json"};
+const MEV_H={...JSONH,"AdaletApplicationName":"UyapMevzuat"};
+const MEV_TYPES=["KANUN","CB_KARARNAME","KHK","YONETMELIK","CB_YONETMELIK","TUZUK","KKY","TEBLIGLER","CB_GENELGE"];
+const SOURCES={
+  mevzuat:{name:"Kanun ve yönetmelik",short:"Mevzuat",site:"https://www.mevzuat.gov.tr",
+    async search(q,page){
+      const base={pageSize:15,pageNumber:page,sortFields:["RESMI_GAZETE_TARIHI"],sortDirection:"desc"};
+      const call=data=>request("POST",BED+"/mevzuat/searchDocuments",{headers:MEV_H,body:JSON.stringify({data,applicationName:"UyapMevzuat",paging:true})});
+      const title=page===1?await call({...base,mevzuatAdi:q.replace(/["+\-]/g," ").trim()}).catch(()=>null):null;
+      const full=await call({...base,phrase:q.replace(/["+]/g," ").replace(/\s-\S+/g," ").trim(),basliktaAra:false,mevzuatTurList:MEV_TYPES});
+      const conv=(j,titleHit)=>((j&&j.data&&j.data.mevzuatList)||[]).map(m=>{
+        const tur=(m.mevzuatTur&&(m.mevzuatTur.description||m.mevzuatTur.name))||"";
+        const rg=parseDate(m.resmiGazeteTarihi);
+        return {src:"mevzuat",id:String(m.mevzuatId),title:clean(m.mevzuatAdi),
+          sub:[m.mevzuatNo?m.mevzuatNo+" sayılı":null,tur,rg?"RG "+fmtDate(rg):null,m.resmiGazeteSayisi?"Sayı "+m.resmiGazeteSayisi:null].filter(Boolean).join(" · "),
+          date:rg,url:m.url||"https://www.mevzuat.gov.tr",cite:clean((m.mevzuatNo?m.mevzuatNo+" sayılı ":"")+m.mevzuatAdi),titleHit,tur:(m.mevzuatTur&&m.mevzuatTur.name)||""}});
+      const items=[...conv(title,true),...conv(full,false)];
+      const seen=new Set();const out=items.filter(x=>!seen.has(x.id)&&seen.add(x.id));
+      const total=Math.max((full&&full.data&&full.data.total)||0,(title&&title.data&&title.data.total)||0);
+      return {items:out,total,hasMore:page*15<((full&&full.data&&full.data.total)||0)}},
+    async read(it){const j=await request("POST",BED+"/mevzuat/getDocumentContent",{headers:MEV_H,body:JSON.stringify({data:{documentType:"MEVZUAT",id:it.id},applicationName:"UyapMevzuat"})});
+      const d=j.data||{};if(!d.content)throw new SourceError("Metin bulunamadı");
+      if(d.mimeType&&!/html/.test(d.mimeType))throw new SourceError("Metin "+d.mimeType+" biçiminde; resmî kaynakta aç");
+      return htmlToText(b64utf8(d.content))}},
+  yargitay:{name:"Yargıtay",short:"Yargıtay",site:"https://karararama.yargitay.gov.tr",
+    async search(q,page){
+      const j=await request("POST",BED+"/emsal-karar/searchDocuments",{headers:JSONH,body:JSON.stringify({data:{phrase:veSorgusu(q),itemTypeList:["YARGITAYKARARI"],pageSize:12,pageNumber:page},paging:true})});
+      const d=j.data||{};const list=d.emsalKararList||[];
+      return {total:d.total||0,hasMore:page*12<(d.total||0),items:list.map(k=>{
+        const birim=clean(k.birimAdi);const m=birim&&!/^yargıtay/i.test(birim)?"Yargıtay "+birim:birim||"Yargıtay";
+        const dt=parseDate(k.kararTarihiStr||k.kararTarihi);const cite=`${m}, E. ${clean(k.esasNo)} K. ${clean(k.kararNo)}, T. ${clean(k.kararTarihiStr)||fmtDate(dt)}`;
+        return {src:"yargitay",id:String(k.documentId),title:m,sub:`E. ${clean(k.esasNo)} · K. ${clean(k.kararNo)}`+(k.kesinlesmeDurumu?" · "+clean(k.kesinlesmeDurumu):""),date:dt,url:"https://mevzuat.adalet.gov.tr/ictihat/"+k.documentId,cite}})}},
+    async read(it){const j=await request("POST",BED+"/emsal-karar/getDocumentContent",{headers:JSONH,body:JSON.stringify({data:{documentId:it.id}})});
+      const d=j.data||{};if(!d.content)throw new SourceError("Karar metni bulunamadı");
+      if(d.mimeType&&!/html/.test(d.mimeType))throw new SourceError("Karar "+d.mimeType+" biçiminde; resmî kaynakta aç");
+      return htmlToText(b64utf8(d.content))}},
+  danistay:{name:"Danıştay",short:"Danıştay",site:"https://karararama.danistay.gov.tr",
+    async search(q,page){
+      const words=plainTerms(q);const not=(q.match(/(^|\s)-(\S+)/g)||[]).map(w=>w.trim().slice(1));
+      const j=await request("POST","https://karararama.danistay.gov.tr/aramalist",{headers:JSONH,body:JSON.stringify({data:{andKelimeler:words.length?words:[q],orKelimeler:[],notAndKelimeler:not,notOrKelimeler:[],pageSize:12,pageNumber:page}})});
+      const d=j.data||{};const list=d.data||[];
+      return {total:d.recordsTotal||0,hasMore:page*12<(d.recordsTotal||0),items:list.map(k=>{
+        const daire=clean(k.daireKurul);const m=daire&&!/^danıştay/i.test(daire)?"Danıştay "+daire:daire||"Danıştay";const dt=parseDate(k.kararTarihi);
+        return {src:"danistay",id:String(k.id),title:m,sub:`E. ${clean(k.esasNo)} · K. ${clean(k.kararNo)}`,date:dt,url:"https://karararama.danistay.gov.tr/getDokuman?id="+k.id+"&arananKelime=",cite:`${m}, E. ${clean(k.esasNo)} K. ${clean(k.kararNo)}, T. ${clean(k.kararTarihi)}`}})}},
+    async read(it){const t=await request("GET","https://karararama.danistay.gov.tr/getDokuman?id="+enc(it.id)+"&arananKelime=",{expect:"html"});
+      const txt=htmlToText(decodeEntities(t.replace(/<p[^>]*\bid\s*=\s*["']?isDisplayCaptcha[^>]*>[\s\S]*?<\/p>/i,"")));if(!txt||txt.length<40||/^Hata!/.test(txt))throw new SourceError("Karar metni bulunamadı");return txt}},
+  emsal:{name:"Bölge ve ilk derece mahkemeleri (UYAP Emsal)",short:"Bölge/İlk derece",site:"https://emsal.uyap.gov.tr",
+    async search(q,page){const s=veSorgusu(q);
+      const j=await request("POST","https://emsal.uyap.gov.tr/aramalist",{headers:JSONH,body:JSON.stringify({data:{aranan:s,arananKelime:s,pageSize:12,pageNumber:page}})});
+      const d=j.data||{};const list=d.data||[];
+      return {total:d.recordsTotal||0,hasMore:page*12<(d.recordsTotal||0),items:list.map(k=>{const dt=parseDate(k.kararTarihi);const m=clean(k.daire)||"Mahkeme";
+        return {src:"emsal",id:String(k.id),title:m,sub:`E. ${clean(k.esasNo)} · K. ${clean(k.kararNo)}`+(k.durum?" · "+clean(k.durum):""),date:dt,url:"https://mevzuat.adalet.gov.tr/ictihat/"+k.id,cite:`${m}, E. ${clean(k.esasNo)} K. ${clean(k.kararNo)}, T. ${clean(k.kararTarihi)}`}})}},
+    async read(it){const j=await request("GET","https://emsal.uyap.gov.tr/getDokuman?id="+enc(it.id));
+      if(!j.data)throw new SourceError("Karar metni bulunamadı");return htmlToText(j.data)}},
+  aym:{name:"Anayasa Mahkemesi · bireysel başvuru",short:"AYM bireysel",site:"https://kararlarbilgibankasi.anayasa.gov.tr",
+    async search(q,page){const d=await aymPost({kararTipi:"BireyselBasvuru",query:veSorgusu(q),page,size:10});const list=d.data||[];const total=+d.total||list.length;
+      return {total,hasMore:page*10<total,items:list.map(r=>{const no=clean(r.basvuruNo);const dt=parseDate(r.kararTarihi);
+        return {src:"aym",id:r.id,title:decodeEntities(clean(String(r.basvuruAdi||"").replace(/<[^>]+>/g,"")))||"AYM bireysel başvuru",
+          sub:["B. No: "+no,clean(String(r.kararTuruBasvuruSonucuLabel||"").replace(/<[^>]+>/g,""))].filter(x=>x&&x!=="B. No: ").join(" · "),
+          date:dt,url:no?"https://kararlarbilgibankasi.anayasa.gov.tr/BB/"+no:"https://kararlarbilgibankasi.anayasa.gov.tr",cite:`AYM, B. No: ${no}, K.T. ${fmtDate(dt)}`}})}},
+    async read(it){const d=await aymPost({kararTipi:"BireyselBasvuru",id:it.id,page:1,size:1});const k=(d.data||[])[0]||{};const t=htmlToText(k.icerik||"");if(t.length<60)throw new SourceError("Karar metni bulunamadı");return t}},
+  norm:{name:"Anayasa Mahkemesi · iptal / itiraz",short:"AYM norm",site:"https://kararlarbilgibankasi.anayasa.gov.tr",
+    async search(q,page){const d=await aymPost({kararTipi:"NormDenetimi",query:veSorgusu(q),page,size:10});const list=d.data||[];const total=+d.total||list.length;
+      return {total,hasMore:page*10<total,items:list.map(r=>{const kn=clean(r.kararNo),en=clean(r.esasNo);const dt=parseDate(r.kararTarihi);
+        const konu=decodeEntities(clean(String(r.kararKonusu||"").replace(/<[^>]+>/g,"")));
+        return {src:"norm",id:r.id,title:konu?konu.slice(0,160)+(konu.length>160?"…":""):"AYM norm denetimi kararı",
+          sub:[`E. ${en} · K. ${kn}`,clean(String(r.kararTuruDosyaSonucuLabel||"").replace(/<[^>]+>/g,""))].filter(Boolean).join(" · "),
+          date:dt,url:kn?"https://kararlarbilgibankasi.anayasa.gov.tr/ND/"+kn:"https://kararlarbilgibankasi.anayasa.gov.tr",cite:`AYM, E. ${en}, K. ${kn}, K.T. ${fmtDate(dt)}`}})}},
+    async read(it){const d=await aymPost({kararTipi:"NormDenetimi",id:it.id,page:1,size:1});const k=(d.data||[])[0]||{};const t=htmlToText(k.icerik||"");if(t.length<60)throw new SourceError("Karar metni bulunamadı");return t}}
+};
+function aymPost(payload){return request("POST","https://kararlarbilgibankasi.anayasa.gov.tr/api/core/public/search",{headers:{"Content-Type":"application/json; charset=utf-8","Accept":"application/json"},body:JSON.stringify(payload)})}
+const KIND={mevzuat:"Mevzuat",yargitay:"Yargıtay",danistay:"Danıştay",emsal:"Bölge / ilk derece",aym:"AYM bireysel başvuru",norm:"AYM iptal / itiraz"};
+
+/* ===================== KONULAR (kural tabanlı rehber) ===================== */
+const CATS=[
+ {id:"idare",ad:"İdare hukuku",ozet:"Belediye, bakanlık, valilik gibi kamu kurumlarının işlemlerine karşı başvuru ve dava (iptal davası, tam yargı davası).",
+  kelime:["idare","idari","belediye","valilik","kaymakamlık","bakanlık","kamu","kurum","iptal","tam yargı","ruhsat","imar","ihale","yıkım","encümen","memur","disiplin","atama","tayin","naklen","görevden"],
+  kanun:[[2577,"İdari Yargılama Usulü Kanunu"],[657,"Devlet Memurları Kanunu"],[3071,"Dilekçe Hakkının Kullanılmasına Dair Kanun"],[4982,"Bilgi Edinme Hakkı Kanunu"],[3194,"İmar Kanunu"],[2942,"Kamulaştırma Kanunu"]],
+  sure:[["60 gün","İdari işleme karşı iptal davası açma süresi; işlemin yazılı bildiriminden itibaren (İYUK m.7). Vergi mahkemelerinde 30 gün."],["1 yıl / 5 yıl","İdarenin eylem ve işlemlerinden zarar gördüysen tam yargı davası öncesi idareye başvuru: zararı öğrendiğin tarihten 1 yıl, her hâlde eylemden 5 yıl içinde (İYUK m.13)."],["30 gün","Kamu kurumuna dilekçe verdiğinde cevap verilmesi gereken süre (3071 s. Kanun m.7)."]],
+  adim:["İşlemin sana tebliğ edildiği tarihi not al; dava süresi bu tarihten başlar.","Gerekirse önce idareye yazılı başvuru yap ve evrak/bilgi iste (Bilgi Edinme dilekçesi).","İdarenin cevabını ya da susmasını bekle; süre kaçmaması için dava açma tarihini takvime yaz.","Süre içinde yetkili idare mahkemesine dava dilekçesi ver; harç ve posta giderini yatır.","Ara sekmesinde konunu Danıştay kararlarında ara; benzer davaların sonucunu incele."],
+  sablon:["idare_basvuru","bilgi_edinme","iptal_davasi","tam_yargi"],ara:["disiplin cezası iptal","yıkım kararı iptal","ruhsat iptali"]},
+ {id:"saglik",ad:"Sağlık hukuku",ozet:"Hasta hakları, tıbbi hata (malpraktis), hastane işlemleri, sağlık personeli.",
+  kelime:["sağlık","hastane","hasta","doktor","hekim","tıbbi","malpraktis","ameliyat","tedavi","teşhis","aşı","ilaç","hemşire","acil","doğum","hata","epikriz","sabim"],
+  kanun:[[1219,"Tababet ve Şuabatı Sanatlarının Tarzı İcrasına Dair Kanun"],[3359,"Sağlık Hizmetleri Temel Kanunu"],[2577,"İdari Yargılama Usulü Kanunu"],[6502,"Tüketicinin Korunması Hakkında Kanun"],["Hasta Hakları Yönetmeliği",null]],
+  sure:[["1 yıl / 5 yıl","Devlet hastanesindeki hata için tazminat: önce idareye başvuru, zararı öğrenmeden 1 yıl, her hâlde 5 yıl içinde (İYUK m.13)."],["Dava şartı","Özel hastane / özel hekim aleyhine tazminat davaları genellikle tüketici mahkemesinde görülür; öncesinde arabuluculuğa başvuru şartı olabilir (6502 s. Kanun m.73/A)."]],
+  adim:["Hastaneden tüm kayıtları iste: epikriz, tetkik sonuçları, onam formları, ameliyat notları (KVKK başvurusuyla da istenebilir).","Hastanenin hasta hakları birimine yazılı şikâyette bulun; SABİM (184) kaydı da açabilirsin.","Kamu hastanesiyse: Sağlık Bakanlığı / il sağlık müdürlüğüne tazminat başvurusu (tam yargı) yap; cevap gelmezse idare mahkemesinde dava aç.","Özel hastaneyse: arabulucuya başvur, anlaşma olmazsa tüketici mahkemesinde dava aç.","Hekimin kusuru suç oluşturabilecekse Cumhuriyet Başsavcılığına şikâyet edebilirsin."],
+  sablon:["hasta_haklari","kvkk","tam_yargi","arabuluculuk","suc_duyurusu"],ara:["tıbbi müdahale hata tazminat","malpraktis tam yargı","aydınlatılmış onam"]},
+ {id:"is",ad:"İş hukuku",ozet:"İşten çıkarılma, işe iade, kıdem ve ihbar tazminatı, fazla mesai, ücret alacakları.",
+  kelime:["iş","işçi","işveren","işten","çıkarıldım","kovuldum","fesih","işe iade","kıdem","ihbar","tazminat","maaş","ücret","fazla mesai","mobbing","istifa","yıllık izin","sgk girişi"],
+  kanun:[[4857,"İş Kanunu"],[7036,"İş Mahkemeleri Kanunu"],[1475,"(Eski) İş Kanunu – kıdem tazminatı m.14"],[5510,"Sosyal Sigortalar ve Genel Sağlık Sigortası Kanunu"]],
+  sure:[["1 ay","İşe iade için fesih bildiriminden itibaren arabulucuya başvuru (4857 m.20)."],["2 hafta","Arabuluculukta anlaşma olmazsa son tutanaktan itibaren işe iade davası (4857 m.20)."],["5 yıl","Kıdem, ihbar, ücret, fazla mesai gibi işçilik alacaklarında zamanaşımı (4857 ek m.3)."],["Dava şartı","İşçilik alacakları ve işe iade için dava açmadan önce arabulucuya başvurmak zorunlu (7036 m.3)."]],
+  adim:["Fesih yazısını, bordroları, SGK hizmet dökümünü (e-Devlet) ve iş yazışmalarını sakla.","Adliyedeki arabuluculuk bürosuna başvur (ücretsiz).","Arabuluculukta anlaşma olmazsa tutanakla birlikte iş mahkemesinde dava aç.","Ara sekmesinde 'işe iade geçerli neden' gibi aramalarla Yargıtay kararlarını incele."],
+  sablon:["arabuluculuk","istinaf"],ara:["işe iade geçerli neden","fazla mesai ispat","kıdem tazminatı haklı fesih"]},
+ {id:"kira",ad:"Kira ve konut",ozet:"Kira artışı, kira tespit, tahliye, depozito, aidat ve kat mülkiyeti uyuşmazlıkları.",
+  kelime:["kira","kiracı","ev sahibi","kiraya veren","tahliye","depozito","kira artışı","kira tespit","aidat","kat mülkiyeti","yönetici","komşu","konut","işyeri kirası"],
+  kanun:[[6098,"Türk Borçlar Kanunu (kira: m.299-378)"],[634,"Kat Mülkiyeti Kanunu"],[6325,"Hukuk Uyuşmazlıklarında Arabuluculuk Kanunu"]],
+  sure:[["12 ay TÜFE","Konut ve çatılı işyeri kirasında yıllık artış, önceki kira yılının 12 aylık TÜFE ortalamasını geçemez (TBK m.344)."],["10 yıl","Kiraya veren, 10 yıllık uzama süresi dolduktan sonra gerekçesiz fesih hakkı kazanır (TBK m.347)."],["Dava şartı","Kira, kat mülkiyeti ve komşuluk uyuşmazlıklarında dava öncesi arabuluculuk zorunlu (6325 s. Kanun m.18/B)."]],
+  adim:["Kira sözleşmesini, ödeme dekontlarını ve yazışmaları sakla.","Talebini yazılı olarak (noter ihtarı ya da iadeli taahhütlü mektup) karşı tarafa bildir.","Anlaşamazsan adliyedeki arabuluculuk bürosuna başvur.","Arabuluculuk olumsuz biterse sulh hukuk mahkemesinde dava aç."],
+  sablon:["arabuluculuk","odeme_emri"],ara:["kira tespit hakkaniyet","ihtiyaç nedeniyle tahliye","tahliye taahhüdü"]},
+ {id:"tuketici",ad:"Tüketici hakları",ozet:"Ayıplı mal/hizmet, iade, internet alışverişi, abonelik, banka ve kredi kartı ücretleri.",
+  kelime:["tüketici","ayıplı","iade","garanti","internet alışverişi","sipariş","kargo","abonelik","fatura","banka","kredi kartı","aidat","cayma","hakem heyeti","servis","arızalı"],
+  kanun:[[6502,"Tüketicinin Korunması Hakkında Kanun"]],
+  sure:[["14 gün","Mesafeli satışta (internet, telefon) gerekçesiz cayma hakkı (6502 m.48)."],["2 yıl","Ayıplı maldan doğan sorumlulukta zamanaşımı, teslimden itibaren (6502 m.12)."],["Parasal sınır","Her yıl belirlenen sınırın altındaki uyuşmazlıklarda tüketici hakem heyetine başvuru zorunlu (6502 m.68); sınırın üstünde önce arabulucu, sonra tüketici mahkemesi (m.73/A)."]],
+  adim:["Fatura, sipariş, yazışma ve ayıbı gösteren fotoğrafları sakla.","Satıcıya yazılı başvuru yap, talebini (iade, değişim, onarım, indirim) açıkça belirt.","Sonuç alamazsan e-Devlet 'Tüketici Hakem Heyeti Başvurusu' ile ya da dilekçeyle hakem heyetine başvur."],
+  sablon:["tuketici_hakem","arabuluculuk"],ara:["ayıplı araç bedel iadesi","kredi kartı yıllık ücret iadesi","mesafeli satış cayma"]},
+ {id:"ceza",ad:"Ceza hukuku",ozet:"Suç duyurusu, şikâyet, savcılık kararlarına itiraz, ceza yargılaması.",
+  kelime:["suç","şikayet","şikâyet","savcılık","dolandırıcılık","hırsızlık","tehdit","hakaret","darp","yaralama","ceza","ifade","kovuşturmaya yer olmadığı","takipsizlik","sanık","mağdur"],
+  kanun:[[5237,"Türk Ceza Kanunu"],[5271,"Ceza Muhakemesi Kanunu"]],
+  sure:[["6 ay","Şikâyete bağlı suçlarda, fiili ve faili öğrendiğin tarihten itibaren şikâyet süresi (TCK m.73)."],["15 gün","Savcılığın kovuşturmaya yer olmadığına dair kararına sulh ceza hâkimliğine itiraz (CMK m.173)."]],
+  adim:["Olayı, tarihleri ve tanıkları yaz; delilleri (mesaj, rapor, kamera kaydı) sakla.","Cumhuriyet Başsavcılığına ya da karakola şikâyet / suç duyurusu dilekçesi ver.","Savcılık kararını takip et (e-Devlet / UYAP Vatandaş); kovuşturmaya yer olmadığı kararına süresinde itiraz et."],
+  sablon:["suc_duyurusu"],ara:["nitelikli dolandırıcılık","tehdit suçu","kovuşturmaya yer olmadığı itiraz"]},
+ {id:"aile",ad:"Aile hukuku",ozet:"Boşanma, nafaka, velayet, şiddet ve koruma kararları.",
+  kelime:["boşanma","nafaka","velayet","eş","evlilik","çocuk","şiddet","koruma kararı","uzaklaştırma","mal paylaşımı","aile","nişan"],
+  kanun:[[4721,"Türk Medeni Kanunu"],[6284,"Ailenin Korunması ve Kadına Karşı Şiddetin Önlenmesine Dair Kanun"]],
+  sure:[["1 yıl","Anlaşmalı boşanma için evliliğin en az 1 yıl sürmüş olması gerekir (TMK m.166)."],["Hemen","Şiddet tehlikesinde koruyucu tedbir için süre yoktur; aile mahkemesine, savcılığa ya da kolluğa hemen başvurulabilir (6284 s. Kanun)."]],
+  adim:["Acil tehlikede 112'yi ara; kolluk ve savcılık 6284 kapsamında tedbir kararı verebilir.","Boşanma, nafaka ve velayet için aile mahkemesine dilekçe ile başvur.","Avukat tutma imkânın yoksa barodaki adli yardım bürosuna başvur."],
+  sablon:["suc_duyurusu"],ara:["boşanma kusur tazminat","yoksulluk nafakası","velayet değişikliği"]},
+ {id:"miras",ad:"Miras hukuku",ozet:"Mirasçılık belgesi, mirasın reddi, vasiyet, tenkis ve ortaklığın giderilmesi.",
+  kelime:["miras","mirasçı","vasiyet","veraset","reddi miras","tenkis","izale-i şuyu","ortaklığın giderilmesi","tereke","muris"],
+  kanun:[[4721,"Türk Medeni Kanunu (miras: m.495 ve devamı)"]],
+  sure:[["3 ay","Mirası reddetme süresi; ölümü öğrenmeden itibaren (TMK m.606)."],["1 yıl / 10 yıl","Tenkis davası: saklı payın zedelendiğini öğrenmeden 1 yıl, her hâlde 10 yıl (TMK m.571)."]],
+  adim:["Mirasçılık belgesini noterden ya da sulh hukuk mahkemesinden al.","Borçlu bir tereke ise 3 ay içinde sulh hukuk mahkemesinde mirası reddet.","Paylaşımda anlaşılamazsa ortaklığın giderilmesi davası (önce arabuluculuk) açılabilir."],
+  sablon:["arabuluculuk"],ara:["mirasın reddi","muris muvazaası","tenkis davası"]},
+ {id:"icra",ad:"İcra ve borç",ozet:"İcra takibi, ödeme emrine itiraz, haciz, borç yapılandırma.",
+  kelime:["icra","ödeme emri","haciz","borç","alacak","takip","itiraz","maaş haczi","senet","çek","iflas","konkordato"],
+  kanun:[[2004,"İcra ve İflas Kanunu"]],
+  sure:[["7 gün","Ödeme emrine itiraz; tebliğden itibaren (İİK m.62)."],["7 gün","İcra memurunun işlemine şikâyet; öğrenmeden itibaren (İİK m.16)."],["7 gün","Mal beyanında bulunma (İİK m.74)."]],
+  adim:["Ödeme emrinin tebliğ tarihini not al.","Borca itiraz ediyorsan 7 gün içinde icra dairesine itiraz dilekçesi ver ya da tutanağa geçirt.","Haciz işlemi hukuka aykırıysa icra mahkemesine şikâyet et."],
+  sablon:["odeme_emri"],ara:["ödeme emrine itiraz","maaş haczi sınırı","meskeniyet şikâyeti"]},
+ {id:"vergi",ad:"Vergi",ozet:"Vergi cezaları, ihbarnameler, ödeme emirleri, uzlaşma.",
+  kelime:["vergi","vergi cezası","ihbarname","tarhiyat","gib","uzlaşma","vergi ziyaı","usulsüzlük","amme alacağı","6183"],
+  kanun:[[213,"Vergi Usul Kanunu"],[6183,"Amme Alacaklarının Tahsil Usulü Hakkında Kanun"],[2577,"İdari Yargılama Usulü Kanunu"]],
+  sure:[["30 gün","Vergi mahkemesinde dava açma süresi (İYUK m.7)."],["15 gün","Amme alacağı ödeme emrine karşı dava (6183 m.58)."]],
+  adim:["İhbarnamenin tebliğ tarihini not al.","Uzlaşma imkânı varsa vergi dairesine uzlaşma talep et.","Süresi içinde vergi mahkemesinde dava aç."],
+  sablon:["iptal_davasi"],ara:["vergi ziyaı cezası iptal","sahte fatura tarhiyat","ödeme emri iptali"]},
+ {id:"sgk",ad:"Sosyal güvenlik",ozet:"Hizmet tespiti, emeklilik, prim borcu, malullük ve iş kazası.",
+  kelime:["sgk","sigorta","emeklilik","prim","hizmet tespiti","sigortasız","iş kazası","malulen","engelli","yaşlılık aylığı","borçlanma","bağkur"],
+  kanun:[[5510,"Sosyal Sigortalar ve Genel Sağlık Sigortası Kanunu"]],
+  sure:[["5 yıl","Sigortasız çalışmanın tespiti davası; çalışılan yılın sonundan itibaren (5510 m.86)."]],
+  adim:["e-Devlet'ten SGK hizmet dökümünü al.","SGK'ya yazılı başvuru yap; ret ya da cevapsızlık hâlinde iş mahkemesinde dava aç.","İş kazasında olayı 3 iş günü içinde SGK'ya bildirmek işverenin görevidir; bildirilmediyse SGK'ya sen de başvurabilirsin."],
+  sablon:["idare_basvuru"],ara:["hizmet tespiti tanık","iş kazası tespiti","malulen emeklilik"]},
+ {id:"trafik",ad:"Trafik ve sigorta",ozet:"Trafik cezası, kaza, sigorta tazminatı, araç değer kaybı.",
+  kelime:["trafik","kaza","trafik cezası","ehliyet","sigorta","kasko","değer kaybı","hasar","radar","alkol","plaka","araç"],
+  kanun:[[2918,"Karayolları Trafik Kanunu"],[5326,"Kabahatler Kanunu"]],
+  sure:[["15 gün","İdari para cezasına (trafik cezası) itiraz; tebliğden itibaren sulh ceza hâkimliğine (5326 m.27)."]],
+  adim:["Ceza tutanağını ya da kaza tespit tutanağını sakla.","Trafik cezasına itiraz için sulh ceza hâkimliğine dilekçe ver.","Kaza tazminatında önce sigorta şirketine yazılı başvur; sonuç alamazsan Sigorta Tahkim Komisyonu ya da mahkeme."],
+  sablon:["trafik_itiraz"],ara:["araç değer kaybı","trafik cezası iptal","ehliyet geri alma"]},
+ {id:"kvkk",ad:"Kişisel veriler ve internet",ozet:"Kişisel verilerin korunması, verilerin silinmesi, internet içeriği kaldırma.",
+  kelime:["kişisel veri","kvkk","veri","silinme","unutulma","internet","sosyal medya","erişim engeli","hesap","fotoğraf","ifşa","telefon numaram"],
+  kanun:[[6698,"Kişisel Verilerin Korunması Kanunu"],[5651,"İnternet Ortamında Yapılan Yayınların Düzenlenmesi Kanunu"]],
+  sure:[["30 gün","Veri sorumlusunun başvurunu cevaplama süresi (6698 m.13)."],["30 / 60 gün","Kurula şikâyet: cevaptan itibaren 30 gün, her hâlde başvurudan itibaren 60 gün (6698 m.14)."]],
+  adim:["Önce veri sorumlusuna (şirket/kurum) yazılı başvur.","30 gün içinde cevap gelmezse ya da cevap yetersizse Kişisel Verileri Koruma Kurulu'na şikâyet et.","İnternetteki içerik kişilik hakkını ihlal ediyorsa sulh ceza hâkimliğine erişim engeli başvurusu yapılabilir."],
+  sablon:["kvkk"],ara:["kişisel verilerin silinmesi","erişim engeli kişilik hakkı","unutulma hakkı"]},
+ {id:"tasinmaz",ad:"Tapu ve gayrimenkul",ozet:"Tapu iptali, ortaklığın giderilmesi, kadastro, ecrimisil, imar.",
+  kelime:["tapu","arsa","tarla","hisse","kadastro","ecrimisil","işgal","tescil","ipotek","gayrimenkul","taşınmaz","müdahalenin men"],
+  kanun:[[4721,"Türk Medeni Kanunu (eşya hukuku)"],[2644,"Tapu Kanunu"],[3402,"Kadastro Kanunu"],[634,"Kat Mülkiyeti Kanunu"]],
+  sure:[["30 gün","Kadastro tutanaklarının askı ilanına itiraz (3402 m.11)."]],
+  adim:["Tapu kaydını e-Devlet ya da tapu müdürlüğünden al.","Paylı mülkiyette anlaşma yoksa ortaklığın giderilmesi için önce arabulucuya başvur.","Haksız işgalde müdahalenin men'i ve ecrimisil davası açılabilir."],
+  sablon:["arabuluculuk"],ara:["tapu iptal tescil muris muvazaası","ecrimisil","ortaklığın giderilmesi"]},
+ {id:"ticaret",ad:"Ticaret, çek ve senet",ozet:"Ticari alacaklar, çek ve senet, şirket uyuşmazlıkları.",
+  kelime:["ticari","şirket","çek","senet","fatura","cari hesap","ortak","limited","anonim","karşılıksız"],
+  kanun:[[6102,"Türk Ticaret Kanunu"],[5941,"Çek Kanunu"]],
+  sure:[["Dava şartı","Ticari davalarda para alacağı için dava öncesi arabuluculuk zorunlu (6102 m.5/A)."]],
+  adim:["Fatura, irsaliye, cari hesap ekstresi ve yazışmaları topla.","Arabulucuya başvur; anlaşma olmazsa asliye ticaret mahkemesinde dava aç ya da icra takibi başlat."],
+  sablon:["arabuluculuk","odeme_emri"],ara:["karşılıksız çek","cari hesap alacağı","kambiyo senedi itiraz"]}
+];
+
+/* ===================== DİLEKÇE ŞABLONLARI ===================== */
+const COMMON=[{id:"ad",l:"Adın soyadın"},{id:"tc",l:"T.C. kimlik no (istersen boş bırak)"},{id:"adres",l:"Adresin"},{id:"tel",l:"Telefon (isteğe bağlı)"}];
+function V(f,k,ph){const v=(f[k]||"").trim();return v||"["+ph+"]"}
+function today(){return new Date().toLocaleDateString("tr-TR")}
+function imza(f){return `\n\n\t\t\t\t\t\t${today()}\n\t\t\t\t\t\t${V(f,"ad","AD SOYAD")}\n\t\t\t\t\t\t(İmza)\n\nAdres: ${V(f,"adres","ADRES")}${(f.tel||"").trim()?"\nTelefon: "+f.tel.trim():""}${(f.tc||"").trim()?"\nT.C. Kimlik No: "+f.tc.trim():""}`}
+function ekler(f){const e=(f.ekler||"").trim();return e?"\n\nEKLER:\n"+e.split(/\n+/).map((x,i)=>`${i+1}. ${x.trim()}`).join("\n"):""}
+const TPL={
+ idare_basvuru:{ad:"Kamu kurumuna başvuru (dilekçe hakkı)",bilgi:"Bir kurumdan işlem yapmasını ya da bir işlemi düzeltmesini istemek için. Kurum 30 gün içinde cevap vermelidir (3071 s. Kanun).",
+  alan:[{id:"kurum",l:"Kurum (örn: X Belediye Başkanlığı)"},{id:"konu",l:"Konu (kısa)"},{id:"olay",l:"Olayı anlat",m:1},{id:"talep",l:"Ne istiyorsun?",m:1},{id:"ekler",l:"Ekler (her satıra bir tane)",m:1}],
+  yaz:f=>`${V(f,"kurum","KURUM ADI").toLocaleUpperCase("tr")}'NA\n\nKONU: ${V(f,"konu","Başvurunun konusu")}\n\nAçıklamalar:\n\n${V(f,"olay","Olayların tarih sırasıyla açıklaması")}\n\nYukarıda açıkladığım nedenlerle; ${V(f,"talep","talebim")}.\n\nGereğinin yapılmasını ve 3071 sayılı Dilekçe Hakkının Kullanılmasına Dair Kanun uyarınca tarafıma yazılı olarak bilgi verilmesini saygılarımla arz ederim.`+imza(f)+ekler(f)},
+ bilgi_edinme:{ad:"Bilgi edinme başvurusu",bilgi:"Kamu kurumundan belge ya da bilgi istemek için. Kurum 15 iş günü içinde cevap vermelidir (4982 s. Kanun m.11).",
+  alan:[{id:"kurum",l:"Kurum"},{id:"istenen",l:"İstediğin bilgi ve belgeler",m:1}],
+  yaz:f=>`${V(f,"kurum","KURUM ADI").toLocaleUpperCase("tr")}'NA\n\nKONU: 4982 sayılı Bilgi Edinme Hakkı Kanunu kapsamında bilgi ve belge talebi\n\n4982 sayılı Bilgi Edinme Hakkı Kanunu uyarınca aşağıdaki bilgi ve belgelerin tarafıma verilmesini talep ediyorum:\n\n${V(f,"istenen","İstenen bilgi ve belgelerin listesi")}\n\nBilgi ve belgelerin yukarıdaki adresime ya da elektronik ortamda gönderilmesini saygılarımla arz ederim.`+imza(f)},
+ iptal_davasi:{ad:"İptal davası dilekçesi (idare / vergi mahkemesi)",bilgi:"İdari işlemin iptali için. Süre genellikle tebliğden itibaren 60 gün, vergi davalarında 30 gün (İYUK m.7). Mahkemeye harç yatırılır.",
+  alan:[{id:"mahkeme",l:"Mahkeme (örn: Ankara Nöbetçi İdare Mahkemesi)"},{id:"davali",l:"Davalı idare"},{id:"islem",l:"Dava konusu işlem (tarih ve sayısıyla)"},{id:"teblig",l:"İşlemin tebliğ tarihi"},{id:"olay",l:"Olaylar",m:1},{id:"hukuk",l:"Hukuka aykırılık nedenleri",m:1},{id:"ekler",l:"Ekler",m:1}],
+  yaz:f=>`${V(f,"mahkeme","NÖBETÇİ İDARE MAHKEMESİ").toLocaleUpperCase("tr")} BAŞKANLIĞINA\n\nDAVACI\t\t: ${V(f,"ad","AD SOYAD")}${(f.tc||"").trim()?" (T.C. "+f.tc.trim()+")":""}\n\t\t\t  ${V(f,"adres","ADRES")}\n\nDAVALI\t\t: ${V(f,"davali","DAVALI İDARE")}\n\nDAVA KONUSU\t: ${V(f,"islem","Dava konusu işlem, tarihi ve sayısı")} işleminin öncelikle yürütmesinin durdurulması ve iptali talebidir.\n\nTEBLİĞ TARİHİ\t: ${V(f,"teblig","GG.AA.YYYY")}\n\nAÇIKLAMALAR:\n\n1. ${V(f,"olay","Olayların tarih sırasıyla açıklaması")}\n\n2. Dava konusu işlem; ${V(f,"hukuk","hukuka aykırılık nedenleri (yetki, şekil, sebep, konu, amaç yönünden)")}.\n\n3. İşlemin uygulanması hâlinde telafisi güç ve imkânsız zararlar doğacağından yürütmenin durdurulması gerekmektedir.\n\nHUKUKİ NEDENLER\t: 2577 sayılı İdari Yargılama Usulü Kanunu ve ilgili mevzuat.\n\nDELİLLER\t: Dava konusu işlem, idari dosya ve her türlü yasal delil.\n\nSONUÇ VE İSTEM\t: Açıklanan nedenlerle, dava konusu işlemin öncelikle yürütmesinin durdurulmasına, yargılama sonunda iptaline, yargılama giderlerinin davalı idareye yükletilmesine karar verilmesini saygılarımla arz ederim.`+imza(f)+ekler(f)},
+ tam_yargi:{ad:"Tam yargı için idareye ön başvuru (tazminat)",bilgi:"İdarenin bir işlemi ya da eylemi yüzünden zarara uğradıysan, dava açmadan önce idareye bu başvuruyu yaparsın: zararı öğrenmeden 1 yıl, her hâlde 5 yıl içinde (İYUK m.13).",
+  alan:[{id:"kurum",l:"İdare (örn: Sağlık Bakanlığı / X Belediyesi)"},{id:"olay",l:"Zarara yol açan olay",m:1},{id:"ogrenme",l:"Zararı öğrendiğin tarih"},{id:"maddi",l:"Maddi tazminat talebi (TL)"},{id:"manevi",l:"Manevi tazminat talebi (TL)"},{id:"ekler",l:"Ekler",m:1}],
+  yaz:f=>`${V(f,"kurum","İDARE ADI").toLocaleUpperCase("tr")}'NA\n\nKONU: 2577 sayılı Kanun'un 13. maddesi uyarınca zararın tazmini talebi\n\nAÇIKLAMALAR:\n\n${V(f,"olay","Zarara yol açan olayın açıklaması")}\n\nZararı ${V(f,"ogrenme","GG.AA.YYYY")} tarihinde öğrendim. Uğradığım zarar idarenin hizmet kusurundan kaynaklanmaktadır.\n\nTALEP: Uğradığım zarar karşılığı ${V(f,"maddi","...")} TL maddi ve ${V(f,"manevi","...")} TL manevi tazminatın, başvuru tarihinden itibaren işleyecek yasal faiziyle birlikte tarafıma ödenmesini; aksi hâlde yasal yollara başvuracağımı bildirir, saygılarımla arz ederim.`+imza(f)+ekler(f)},
+ suc_duyurusu:{ad:"Suç duyurusu / şikâyet dilekçesi",bilgi:"Cumhuriyet Başsavcılığına verilir. Şikâyete bağlı suçlarda süre, fiili ve faili öğrenmeden itibaren 6 aydır (TCK m.73).",
+  alan:[{id:"savcilik",l:"Başsavcılık (örn: İstanbul Cumhuriyet Başsavcılığı)"},{id:"supheli",l:"Şüpheli (bilinmiyorsa 'Faili meçhul')"},{id:"suc",l:"Suç (örn: dolandırıcılık, tehdit)"},{id:"tarih",l:"Suç tarihi"},{id:"olay",l:"Olayı anlat",m:1},{id:"deliller",l:"Deliller",m:1},{id:"ekler",l:"Ekler",m:1}],
+  yaz:f=>`${V(f,"savcilik","CUMHURİYET BAŞSAVCILIĞI").toLocaleUpperCase("tr")}'NA\n\nŞİKÂYETÇİ\t: ${V(f,"ad","AD SOYAD")}${(f.tc||"").trim()?" (T.C. "+f.tc.trim()+")":""}\n\t\t\t  ${V(f,"adres","ADRES")}\n\nŞÜPHELİ\t\t: ${V(f,"supheli","Şüphelinin bilinen bilgileri")}\n\nSUÇ\t\t: ${V(f,"suc","Suçun adı")}\n\nSUÇ TARİHİ\t: ${V(f,"tarih","GG.AA.YYYY")}\n\nAÇIKLAMALAR:\n\n${V(f,"olay","Olayın açıklaması")}\n\nDELİLLER\t: ${V(f,"deliller","Tanık, mesaj kayıtları, rapor vb.")}\n\nSONUÇ VE İSTEM\t: Yukarıda açıklanan nedenlerle şüpheli hakkında gerekli soruşturmanın yapılarak cezalandırılması için kamu davası açılmasına karar verilmesini saygılarımla arz ederim.`+imza(f)+ekler(f)},
+ odeme_emri:{ad:"Ödeme emrine itiraz",bilgi:"İcra dairesine verilir. Süre, ödeme emrinin tebliğinden itibaren 7 gündür (İİK m.62).",
+  alan:[{id:"daire",l:"İcra dairesi (örn: İstanbul 5. İcra Dairesi)"},{id:"dosya",l:"Dosya no (örn: 2026/12345 E.)"},{id:"alacakli",l:"Alacaklı"},{id:"teblig",l:"Tebliğ tarihi"},{id:"neden",l:"İtiraz nedenin",m:1}],
+  yaz:f=>`${V(f,"daire","İCRA DAİRESİ").toLocaleUpperCase("tr")} MÜDÜRLÜĞÜNE\n\nDOSYA NO\t: ${V(f,"dosya","..../..... E.")}\n\nİTİRAZ EDEN (BORÇLU)\t: ${V(f,"ad","AD SOYAD")}\n\nALACAKLI\t: ${V(f,"alacakli","ALACAKLI")}\n\nKONU\t\t: ${V(f,"teblig","GG.AA.YYYY")} tarihinde tebliğ edilen ödeme emrine itirazlarımın sunulmasıdır.\n\nAÇIKLAMALAR:\n\nYukarıda numarası yazılı dosyadan tarafıma gönderilen ödeme emrine süresi içinde itiraz ediyorum. ${V(f,"neden","Borca, faize ve ferilerine itiraz nedenleri")}\n\nSONUÇ VE İSTEM\t: Borca, faize, ferilerine ve tüm takibe itiraz ediyorum. İtirazımın kabulü ile takibin durdurulmasını saygılarımla arz ederim.`+imza(f)},
+ tuketici_hakem:{ad:"Tüketici hakem heyeti başvurusu",bilgi:"Parasal sınırın altındaki uyuşmazlıklar için. e-Devlet üzerinden de yapılabilir.",
+  alan:[{id:"il",l:"İl / ilçe (örn: Kadıköy)"},{id:"satici",l:"Satıcı / firma adı ve adresi"},{id:"urun",l:"Ürün veya hizmet"},{id:"tarih",l:"Satın alma tarihi"},{id:"bedel",l:"Bedel (TL)"},{id:"olay",l:"Sorun",m:1},{id:"talep",l:"Talep (iade, değişim, onarım, indirim)"},{id:"ekler",l:"Ekler",m:1}],
+  yaz:f=>`${V(f,"il","İL/İLÇE").toLocaleUpperCase("tr")} TÜKETİCİ HAKEM HEYETİ BAŞKANLIĞINA\n\nBAŞVURAN\t: ${V(f,"ad","AD SOYAD")}\n\t\t\t  ${V(f,"adres","ADRES")}\n\nKARŞI TARAF\t: ${V(f,"satici","Firma adı ve adresi")}\n\nKONU\t\t: ${V(f,"urun","Ürün/hizmet")} ile ilgili uyuşmazlık\n\nAÇIKLAMALAR:\n\n${V(f,"tarih","GG.AA.YYYY")} tarihinde ${V(f,"bedel","...")} TL bedelle ${V(f,"urun","ürünü")} satın aldım. ${V(f,"olay","Sorunun açıklaması")}\n\nSatıcıya başvurmama rağmen sorun çözülmemiştir.\n\nTALEP\t\t: 6502 sayılı Tüketicinin Korunması Hakkında Kanun uyarınca ${V(f,"talep","talebim")} konusunda karar verilmesini saygılarımla arz ederim.`+imza(f)+ekler(f)},
+ arabuluculuk:{ad:"Arabuluculuk başvuru dilekçesi",bilgi:"İşçi-işveren, kira, komşuluk, tüketici ve ticari uyuşmazlıklarda dava açmadan önce adliyedeki arabuluculuk bürosuna verilir.",
+  alan:[{id:"buro",l:"Büro (örn: İstanbul Anadolu Adliyesi Arabuluculuk Bürosu)"},{id:"karsi",l:"Karşı taraf adı ve adresi"},{id:"tur",l:"Uyuşmazlık türü (işe iade, kira, tüketici…)"},{id:"olay",l:"Uyuşmazlığı anlat",m:1},{id:"talep",l:"Talep",m:1}],
+  yaz:f=>`${V(f,"buro","ADLİYESİ ARABULUCULUK BÜROSU").toLocaleUpperCase("tr")}'NA\n\nBAŞVURAN\t: ${V(f,"ad","AD SOYAD")}${(f.tc||"").trim()?" (T.C. "+f.tc.trim()+")":""}\n\t\t\t  ${V(f,"adres","ADRES")}\n\nKARŞI TARAF\t: ${V(f,"karsi","Karşı taraf adı ve adresi")}\n\nUYUŞMAZLIK TÜRÜ: ${V(f,"tur","Uyuşmazlık türü")}\n\nAÇIKLAMALAR:\n\n${V(f,"olay","Uyuşmazlığın açıklaması")}\n\nTALEP\t\t: ${V(f,"talep","Talebim")}. Uyuşmazlığın çözümü için arabulucu görevlendirilmesini saygılarımla arz ederim.`+imza(f)},
+ kvkk:{ad:"KVKK başvurusu (verilerin verilmesi / silinmesi)",bilgi:"Şirkete ya da kuruma (veri sorumlusu) verilir; 30 gün içinde cevap verilmelidir (6698 m.13). Hastaneden kayıt istemek için de kullanılabilir.",
+  alan:[{id:"sorumlu",l:"Veri sorumlusu (şirket/kurum)"},{id:"iliski",l:"Onlarla ilişkin (müşteri, hasta, çalışan…)"},{id:"talep",l:"Talebin",m:1}],
+  yaz:f=>`${V(f,"sorumlu","VERİ SORUMLUSU").toLocaleUpperCase("tr")}'NA\n\nKONU: 6698 sayılı Kişisel Verilerin Korunması Kanunu'nun 11. maddesi kapsamında başvuru\n\nKurumunuzla ${V(f,"iliski","ilişkim")} sıfatıyla ilişkim bulunmaktadır. 6698 sayılı Kanun'un 11. ve 13. maddeleri uyarınca;\n\n${V(f,"talep","Hakkımda işlenen kişisel verilerin bir örneğinin verilmesi / verilerimin silinmesi")}\n\ntalebimin 30 gün içinde yazılı olarak cevaplanmasını saygılarımla arz ederim.`+imza(f)},
+ hasta_haklari:{ad:"Hasta hakları birimine şikâyet",bilgi:"Hastanenin hasta hakları birimine ya da il sağlık müdürlüğüne verilir.",
+  alan:[{id:"hastane",l:"Hastane"},{id:"tarih",l:"Olay tarihi"},{id:"birim",l:"Bölüm / hekim (biliyorsan)"},{id:"olay",l:"Ne oldu?",m:1},{id:"talep",l:"Talebin",m:1},{id:"ekler",l:"Ekler",m:1}],
+  yaz:f=>`${V(f,"hastane","HASTANE ADI").toLocaleUpperCase("tr")} HASTA HAKLARI BİRİMİ'NE\n\nKONU: Hasta hakları ihlali hakkında şikâyet\n\n${V(f,"tarih","GG.AA.YYYY")} tarihinde hastanenizin ${V(f,"birim","ilgili bölümü")} biriminde aşağıdaki olay yaşanmıştır:\n\n${V(f,"olay","Olayın açıklaması")}\n\nHasta Hakları Yönetmeliği kapsamında şikâyetimin incelenmesini, ${V(f,"talep","talebim")} ve sonucun tarafıma yazılı olarak bildirilmesini saygılarımla arz ederim.`+imza(f)+ekler(f)},
+ istinaf:{ad:"İstinaf dilekçesi (hukuk davaları, genel)",bilgi:"İlk derece mahkemesinin kararına karşı; gerekçeli kararın tebliğinden itibaren 2 hafta içinde kararı veren mahkemeye verilir (HMK m.345).",
+  alan:[{id:"bam",l:"Bölge adliye mahkemesi (örn: İstanbul BAM)"},{id:"mahkeme",l:"Kararı veren mahkeme"},{id:"dosya",l:"Esas / karar no"},{id:"karsi",l:"Karşı taraf"},{id:"teblig",l:"Gerekçeli kararın tebliğ tarihi"},{id:"neden",l:"Kararın hatalı olduğu noktalar",m:1}],
+  yaz:f=>`${V(f,"mahkeme","İLK DERECE MAHKEMESİ").toLocaleUpperCase("tr")}'NE\nGönderilmek üzere\n${V(f,"bam","BÖLGE ADLİYE MAHKEMESİ").toLocaleUpperCase("tr")} İLGİLİ HUKUK DAİRESİ BAŞKANLIĞINA\n\nDOSYA NO\t: ${V(f,"dosya","Esas / Karar no")}\n\nİSTİNAF EDEN\t: ${V(f,"ad","AD SOYAD")}\n\t\t\t  ${V(f,"adres","ADRES")}\n\nKARŞI TARAF\t: ${V(f,"karsi","Karşı taraf")}\n\nTEBLİĞ TARİHİ\t: ${V(f,"teblig","GG.AA.YYYY")}\n\nAÇIKLAMALAR:\n\nYukarıda numarası yazılı dosyada verilen karar usul ve yasaya aykırıdır. İstinaf nedenlerim şunlardır:\n\n${V(f,"neden","İstinaf nedenleri")}\n\nSONUÇ VE İSTEM\t: Açıklanan nedenlerle kararın kaldırılmasına ve davanın esası hakkında yeniden karar verilmesine karar verilmesini saygılarımla arz ederim.`+imza(f)},
+ trafik_itiraz:{ad:"Trafik cezasına itiraz",bilgi:"Sulh ceza hâkimliğine verilir; süre tebliğden itibaren 15 gündür (5326 m.27).",
+  alan:[{id:"hakimlik",l:"Sulh ceza hâkimliği (örn: Ankara Nöbetçi Sulh Ceza Hâkimliği)"},{id:"tutanak",l:"Ceza tutanağı seri / sıra no"},{id:"plaka",l:"Plaka"},{id:"tarih",l:"Ceza tarihi"},{id:"teblig",l:"Tebliğ tarihi"},{id:"neden",l:"İtiraz nedenin",m:1},{id:"ekler",l:"Ekler",m:1}],
+  yaz:f=>`${V(f,"hakimlik","NÖBETÇİ SULH CEZA HÂKİMLİĞİ").toLocaleUpperCase("tr")}'NE\n\nİTİRAZ EDEN\t: ${V(f,"ad","AD SOYAD")}${(f.tc||"").trim()?" (T.C. "+f.tc.trim()+")":""}\n\t\t\t  ${V(f,"adres","ADRES")}\n\nKONU\t\t: ${V(f,"tarih","GG.AA.YYYY")} tarihli, ${V(f,"tutanak","seri/sıra no")} numaralı, ${V(f,"plaka","plaka")} plakalı araç adına düzenlenen idari para cezası karar tutanağına itirazdır. (Tebliğ: ${V(f,"teblig","GG.AA.YYYY")})\n\nAÇIKLAMALAR:\n\n${V(f,"neden","İtiraz nedenleri")}\n\nHUKUKİ NEDENLER\t: 5326 sayılı Kabahatler Kanunu m.27 ve ilgili mevzuat.\n\nSONUÇ VE İSTEM\t: İdari para cezasının kaldırılmasına karar verilmesini saygılarımla arz ederim.`+imza(f)+ekler(f)}
+};
+
+/* ===================== ARAMA DURUMU ===================== */
+const ORDER=["mevzuat","yargitay","danistay","emsal","aym","norm"];
+const enabled=new Set(ORDER);
+let state=null;let seq=0;
+ORDER.forEach(k=>{const b=el("button",{class:"chip","aria-pressed":"true",text:SOURCES[k].short});
+  b.onclick=()=>{enabled.has(k)?enabled.delete(k):enabled.add(k);if(!enabled.size){enabled.add(k)}b.setAttribute("aria-pressed",enabled.has(k));if(state&&state.q)search(state.q)};$("#srcChips").append(b)});
+
+function matchCats(q){const f=" "+fold(q)+" ";
+  return CATS.map(c=>({c,s:c.kelime.reduce((n,k)=>n+(f.includes(fold(k))?(k.includes(" ")?3:2):0),0)})).filter(x=>x.s>0).sort((a,b)=>b.s-a.s).slice(0,1).map(x=>x.c)}
+
+async function search(q){
+  q=(q||"").trim();if(!q)return;const my=++seq;
+  state={q,page:1,bySrc:{},status:{},more:{}};
+  $("#results").replaceChildren(el("div",{class:"empty",text:"Resmî kaynaklarda aranıyor…"}));
+  $("#moreBtn").hidden=true;$("#count").textContent="";
+  renderGuide(q);
+  await loadPage(my,1);
+}
+async function loadPage(my,page){
+  const active=ORDER.filter(k=>enabled.has(k));
+  active.forEach(k=>{if(page===1||state.more[k])state.status[k]={t:"wait"}});renderStatus();
+  await Promise.all(active.map(async k=>{
+    if(page>1&&!state.more[k])return;
+    try{const r=await SOURCES[k].search(state.q,page);if(my!==seq)return;
+      (state.bySrc[k]=state.bySrc[k]||[]).push(...r.items);state.more[k]=r.hasMore;state.status[k]={t:"ok",n:r.total}}
+    catch(e){if(my!==seq)return;state.more[k]=false;state.status[k]={t:"err",m:e.message||"Hata"}}
+    renderStatus();renderResults();
+  }));
+  if(my!==seq)return;state.page=page;
+  $("#moreBtn").hidden=!Object.values(state.more).some(Boolean);
+  renderResults();
+}
+function renderStatus(){const box=$("#status");box.replaceChildren();
+  ORDER.filter(k=>state.status[k]).forEach(k=>{const s=state.status[k];
+    if(s.t==="wait")box.append(el("span",{class:"pill",text:SOURCES[k].short+" …"}));
+    else if(s.t==="ok")box.append(el("span",{class:"pill ok",text:`${SOURCES[k].short}: ${Number(s.n||0).toLocaleString("tr-TR")}`}));
+    else box.append(el("span",{class:"pill err",title:s.m},SOURCES[k].short+": "+s.m+" · ",el("a",{href:SOURCES[k].site,target:"_blank",rel:"noopener",text:"sitede ara ↗"})))})}
+function relevance(it,terms){const t=fold(it.title+" "+it.sub);let s=0;terms.forEach(w=>{if(t.includes(fold(w)))s+=2});if(it.titleHit)s+=6;if(it.src==="mevzuat"&&it.tur==="KANUN")s+=2;return s}
+function ordered(){
+  const sort=$("#sort").value;const lists=ORDER.filter(k=>enabled.has(k)).map(k=>state.bySrc[k]||[]);
+  if(sort==="new"||sort==="old"){const all=lists.flat();const dir=sort==="new"?-1:1;
+    return all.sort((a,b)=>{if(!a.date&&!b.date)return 0;if(!a.date)return 1;if(!b.date)return -1;return dir*(a.date-b.date)})}
+  const terms=plainTerms(state.q);
+  // kaynakların kendi sıralamasını koruyarak sırayla harmanla; mevzuatta başlık eşleşmeleri öne
+  const mev=(state.bySrc.mevzuat&&enabled.has("mevzuat"))?[...state.bySrc.mevzuat].sort((a,b)=>relevance(b,terms)-relevance(a,terms)):[];
+  const others=ORDER.filter(k=>k!=="mevzuat"&&enabled.has(k)).map(k=>state.bySrc[k]||[]);
+  const out=mev.slice(0,3);const restMev=mev.slice(3);
+  const max=Math.max(0,...others.map(l=>l.length),restMev.length);
+  for(let i=0;i<max;i++){others.forEach(l=>{if(l[i])out.push(l[i])});if(i%2===1&&restMev.length)out.push(restMev.shift())}
+  return out.concat(restMev)}
+function renderResults(){
+  const box=$("#results");const items=ordered();box.replaceChildren();
+  const waiting=ORDER.some(k=>state.status[k]&&state.status[k].t==="wait");
+  if(!items.length){box.append(el("div",{class:"empty",text:waiting?"Resmî kaynaklarda aranıyor…":"Sonuç bulunamadı. Daha az ya da farklı sözcükle dene (örn: 'kira tespit' yerine 'kira')."}));$("#count").textContent="";return}
+  $("#count").textContent=items.length+" sonuç gösteriliyor";
+  items.forEach(it=>box.append(itemCard(it)))}
+function itemCard(it){
+  return el("article",{class:"item","data-src":it.src},
+    el("div",{class:"top"},el("span",{class:"kind",text:KIND[it.src]}),el("span",{class:"date",text:fmtDate(it.date)})),
+    el("h3",{text:it.title}),it.sub?el("div",{class:"sub",text:it.sub}):null,
+    el("div",{class:"acts"},el("button",{class:"btn small primary",text:"Metni oku",onclick:()=>openReader(it)}),
+      el("a",{class:"btn small",href:it.url,target:"_blank",rel:"noopener",text:"Kaynak ↗"}),
+      el("button",{class:"btn small",text:"Kopyala",title:"Atfı kopyala",onclick:()=>copyText(it.cite)})))}
+$("#sform").addEventListener("submit",e=>{e.preventDefault();$("#q").blur();search($("#q").value)});
+$("#sort").onchange=()=>{if(state)renderResults()};
+$("#moreBtn").onclick=()=>{if(state){$("#moreBtn").hidden=true;loadPage(seq,state.page+1)}};
+document.querySelectorAll("[data-ex]").forEach(a=>a.onclick=e=>{e.preventDefault();$("#q").value=a.dataset.ex;search(a.dataset.ex)});
+
+/* ===================== REHBER KARTI ===================== */
+function guideBlock(c,compact){
+  const frag=[];
+  frag.push(el("div",{},el("div",{class:"label",text:"Kaçırma: süreler"}),el("div",{class:"deadline"},...c.sure.flatMap(([a,b])=>[el("b",{text:a}),el("span",{text:b})]))));
+  frag.push(el("div",{},el("div",{class:"label",text:"Ne yapmalıyım?"}),el("ol",{class:"steps"},...c.adim.map(a=>el("li",{text:a})))));
+  frag.push(el("div",{},el("div",{class:"label",text:"Temel kanunlar · dokun, metni aç"}),el("div",{class:"lawlist"},...c.kanun.map(([no,ad])=>
+    el("button",{class:"btn small",text:typeof no==="number"?`${no} · ${ad}`:no,onclick:()=>openLaw(no,ad)})))));
+  frag.push(el("div",{},el("div",{class:"label",text:"Hazır dilekçeler"}),el("div",{class:"lawlist"},...c.sablon.map(id=>el("button",{class:"btn small",text:TPL[id].ad,onclick:()=>openTpl(id)})))));
+  if(!compact)frag.push(el("div",{},el("div",{class:"label",text:"Örnek karar aramaları"}),el("div",{class:"lawlist"},...c.ara.map(a=>el("button",{class:"btn small",text:"🔎 "+a,onclick:()=>{show("ara");$("#q").value=a;search(a)}})))));
+  return frag}
+function renderGuide(q){const box=$("#guideBox");box.replaceChildren();const m=matchCats(q);if(!m.length)return;const c=m[0];
+  box.append(el("section",{class:"guide",style:"margin-bottom:12px"},
+    el("div",{class:"row",style:"justify-content:space-between"},el("h2",{text:"Konu rehberi: "+c.ad}),el("button",{class:"btn small",text:"Gizle",onclick:()=>box.replaceChildren()})),
+    el("p",{class:"hint",style:"margin:0",text:c.ozet}),...guideBlock(c,true)))}
+async function openLaw(no,ad){
+  if(typeof no!=="number"){show("ara");$("#q").value=no;search(no);return}
+  toast(no+" sayılı kanun aranıyor…");
+  try{const j=await request("POST",BED+"/mevzuat/searchDocuments",{headers:MEV_H,body:JSON.stringify({data:{pageSize:10,pageNumber:1,mevzuatNo:String(no),mevzuatTurList:["KANUN"],sortFields:["RESMI_GAZETE_TARIHI"],sortDirection:"desc"},applicationName:"UyapMevzuat",paging:true})});
+    const list=(j.data&&j.data.mevzuatList)||[];const m=list.find(x=>String(x.mevzuatNo)===String(no))||list[0];
+    if(!m)throw new SourceError("Kanun bulunamadı");
+    openReader({src:"mevzuat",id:String(m.mevzuatId),title:clean(m.mevzuatAdi),sub:no+" sayılı Kanun",url:m.url||"https://www.mevzuat.gov.tr",cite:no+" sayılı "+clean(m.mevzuatAdi)})}
+  catch(e){toast("Kanun metni açılamadı: "+e.message+". Ara sekmesinde '"+no+" sayılı' diye arayabilirsin.")}}
+
+/* ===================== KONULAR SEKMESİ ===================== */
+(function(){const list=$("#catList");
+  CATS.forEach(c=>{const d=el("details",{class:"cat"},el("summary",{},el("div",{},el("h3",{text:c.ad}),el("div",{class:"sub",text:c.ozet}))),el("div",{class:"body"},...guideBlock(c,false)));list.append(d)})})();
+
+/* ===================== OKUYUCU ===================== */
+let rMarks=[],rIdx=-1,rItem=null;
+async function openReader(it){
+  rItem=it;$("#rKind").textContent=KIND[it.src];$("#rTitle").textContent=it.title;$("#rSub").textContent=it.sub||"";
+  $("#rSrc").href=it.url;$("#rText").textContent="Metin resmî kaynaktan alınıyor…";$("#rHits").textContent="";
+  $("#rFind").value=state&&state.q?plainTerms(state.q).join(" "):"";
+  $("#reader").hidden=false;document.body.style.overflow="hidden";
+  try{history.pushState({reader:1},"")}catch(e){}
+  try{const txt=await SOURCES[it.src].read(it);if(rItem!==it)return;$("#rText").textContent=txt;highlight();}
+  catch(e){if(rItem!==it)return;$("#rText").replaceChildren(el("p",{text:"Metin alınamadı: "+e.message}),el("a",{class:"btn",href:it.url,target:"_blank",rel:"noopener",text:"Resmî kaynakta aç ↗"}))}}
+function closeReader(){if($("#reader").hidden)return;$("#reader").hidden=true;document.body.style.overflow="";rItem=null}
+$("#rClose").onclick=()=>{closeReader();try{if(history.state&&history.state.reader)history.back()}catch(e){}};
+window.addEventListener("popstate",closeReader);
+function highlight(){
+  const box=$("#rText");const raw=box.textContent;const terms=plainTerms($("#rFind").value).map(w=>w.replace(/[.*+?^${}()|[\]\\]/g,"\\$&"));
+  box.textContent=raw;rMarks=[];rIdx=-1;if(!terms.length){$("#rHits").textContent="";return}
+  const re=new RegExp("("+terms.join("|")+")","giu");const frag=document.createDocumentFragment();let last=0;let m;
+  while((m=re.exec(raw))){if(m.index>last)frag.append(raw.slice(last,m.index));const mk=el("mark",{text:m[0]});rMarks.push(mk);frag.append(mk);last=m.index+m[0].length;if(rMarks.length>2000)break}
+  frag.append(raw.slice(last));box.replaceChildren(frag);
+  $("#rHits").textContent=rMarks.length?rMarks.length+" eşleşme":"Eşleşme yok";if(rMarks.length)next()}
+function next(){if(!rMarks.length)return;if(rIdx>=0)rMarks[rIdx].classList.remove("cur");rIdx=(rIdx+1)%rMarks.length;const m=rMarks[rIdx];m.classList.add("cur");m.scrollIntoView({block:"center"});$("#rHits").textContent=(rIdx+1)+" / "+rMarks.length}
+let ft;$("#rFind").addEventListener("input",()=>{clearTimeout(ft);ft=setTimeout(highlight,350)});
+$("#rFind").addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();next()}});
+$("#rNext").onclick=next;
+$("#rCite").onclick=()=>rItem&&copyText(rItem.cite);
+
+/* ===================== DİLEKÇE SEKMESİ ===================== */
+const form={};
+(function(){const sel=$("#tplSel");Object.keys(TPL).forEach(k=>sel.append(el("option",{value:k,text:TPL[k].ad})));sel.onchange=()=>buildTpl(sel.value);buildTpl(sel.value)})();
+function buildTpl(id){const t=TPL[id];$("#tplInfo").textContent=t.bilgi;const box=$("#tplForm");box.replaceChildren();
+  [...COMMON,...t.alan].forEach(a=>{const inp=a.m?el("textarea",{id:"f_"+a.id,rows:"3"}):el("input",{type:"text",id:"f_"+a.id});inp.value=form[a.id]||"";
+    inp.addEventListener("input",()=>{form[a.id]=inp.value;preview()});box.append(el("label",{},a.l,inp))});
+  $("#tplSel").value=id;preview()}
+function preview(){$("#preview").textContent=TPL[$("#tplSel").value].yaz(form)}
+function openTpl(id){show("dil");buildTpl(id);window.scrollTo(0,0)}
+$("#copyBtn").onclick=()=>copyText($("#preview").textContent);
+$("#shareBtn").onclick=()=>{const t=$("#preview").textContent;
+  if(window.Android&&window.Android.share){window.Android.share(TPL[$("#tplSel").value].ad,t);return}
+  if(navigator.share){navigator.share({title:TPL[$("#tplSel").value].ad,text:t}).catch(()=>{});return}
+  copyText(t)};
+
+/* ===================== SEKMELER + SÜRÜM ===================== */
+function show(v){document.querySelectorAll(".tab").forEach(t=>t.setAttribute("aria-selected",t.dataset.view===v));["ara","kat","dil"].forEach(id=>$("#"+id).hidden=v!==id)}
+document.querySelectorAll(".tab").forEach(t=>t.onclick=()=>show(t.dataset.view));
+if(window.Android&&window.Android.appVersion){$("#appinfo").hidden=false;try{$("#appver").textContent="Sürüm "+window.Android.appVersion()}catch(e){}
+  $("#checkUpd").onclick=()=>window.Android.checkUpdateNow()}
+</script>
